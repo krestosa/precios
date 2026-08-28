@@ -40,6 +40,7 @@ export class PriceWorkbench extends HTMLElement {
 
   private bindEvents(): void {
     this.onUi('ui:source-files', (detail) => dispatchWorkbenchEvent(this, 'pw:price-source-files', detail));
+    this.onUi('ui:sheet-select', (detail) => dispatchWorkbenchEvent(this, 'pw:sheet-select', detail));
     this.onUi('ui:svg-files', (detail) => dispatchWorkbenchEvent(this, 'pw:svg-files', detail));
     this.onUi('ui:font-files', (detail) => dispatchWorkbenchEvent(this, 'pw:font-files', detail));
     this.onUi('ui:file-activate', (detail) => { this.ui.selectFile(detail.id); this.refresh(); });

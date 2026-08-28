@@ -4,6 +4,7 @@ import type { LayoutIssueKind, PreviewMode } from '../models';
 
 export interface UiTemplateEventMap {
   'ui:source-files': FilesSelectedDetail;
+  'ui:sheet-select': { readonly sheetName: string };
   'ui:svg-files': FilesSelectedDetail;
   'ui:font-files': FilesSelectedDetail;
   'ui:file-activate': { readonly id: string };

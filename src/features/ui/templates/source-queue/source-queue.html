@@ -2,6 +2,20 @@
   <div class="stack">
     <pw-file-dropzone class="source-dropzone" label="Cargar fuente local"></pw-file-dropzone>
     <div class="source-file" aria-live="polite" aria-atomic="true" hidden><strong></strong><div class="message"></div></div>
+    <div class="sheet-selector" hidden>
+      <label for="source-sheet">Hoja de datos</label>
+      <select id="source-sheet" class="sheet-select">
+        <option value="" selected disabled>Seleccioná una hoja</option>
+      </select>
+      <p class="sheet-suggestion" hidden></p>
+      <div class="sheet-feedback" aria-live="polite" aria-atomic="true">
+        <pw-status-chip class="sheet-status"></pw-status-chip>
+        <p class="sheet-message" hidden></p>
+        <p class="sheet-summary" hidden></p>
+        <p class="sheet-warnings" hidden></p>
+      </div>
+      <template class="sheet-option-template"><option></option></template>
+    </div>
   </div>
 </pw-panel>
 <pw-panel heading="2. Archivos SVG" description="Admite múltiples archivos y conserva errores de forma aislada.">

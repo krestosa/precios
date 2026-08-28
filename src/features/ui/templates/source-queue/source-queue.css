@@ -1,5 +1,13 @@
 :host { display: grid; gap: var(--pw-space-md); }
-.stack, .queue-feedback { display: grid; gap: var(--pw-space-md); }
+.stack { display: grid; gap: var(--pw-space-md); }
 .source-file { font: var(--pw-type-body-small); letter-spacing: var(--pw-type-body-small-letter-spacing); }
 .message { color: var(--pw-color-on-surface-variant); margin-top: var(--pw-space-xs); }
+.sheet-selector { display: grid; gap: var(--pw-space-sm); min-width: 0; padding: var(--pw-space-md); border: var(--pw-border-width) solid var(--pw-color-outline-variant); border-radius: var(--pw-shape-md); background: var(--pw-color-surface-container-lowest); }
+.sheet-selector label { font: var(--pw-type-label-large); letter-spacing: var(--pw-type-label-large-letter-spacing); color: var(--pw-color-on-surface); }
+.sheet-select { width: 100%; max-width: 100%; min-width: 0; min-height: var(--pw-control-min-target); border: var(--pw-border-width) solid var(--pw-color-outline-variant); border-radius: var(--pw-shape-sm); padding: var(--pw-space-sm) var(--pw-space-md); color: var(--pw-color-on-surface); background: var(--pw-color-surface); font: inherit; }
+.sheet-select:focus-visible { outline: var(--pw-focus-width) solid var(--pw-color-primary); outline-offset: var(--pw-focus-outward-offset); }
+.sheet-feedback { display: grid; gap: var(--pw-space-xs); min-width: 0; }
+.sheet-suggestion, .sheet-message, .sheet-summary, .sheet-warnings { margin: 0; overflow-wrap: anywhere; }
+.sheet-suggestion, .sheet-message, .sheet-warnings { color: var(--pw-color-on-surface-variant); font: var(--pw-type-body-small); letter-spacing: var(--pw-type-body-small-letter-spacing); }
+.sheet-summary { color: var(--pw-color-on-surface); font: var(--pw-type-body-small); letter-spacing: var(--pw-type-body-small-letter-spacing); }
 [hidden] { display: none !important; }

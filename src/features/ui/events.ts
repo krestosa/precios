@@ -7,6 +7,7 @@ export type ManifestUiFormat = 'json' | 'csv';
 
 export interface WorkbenchEventMap {
   'pw:price-source-files': { readonly files: readonly File[] };
+  'pw:sheet-select': { readonly sheetName: string };
   'pw:svg-files': { readonly files: readonly File[] };
   'pw:font-files': { readonly files: readonly File[] };
   'pw:match-apply': { readonly fileId: string; readonly candidateId: string; readonly scope: MatchApplyScope };
@@ -41,6 +42,7 @@ export function dispatchWorkbenchEvent<Name extends WorkbenchEventName>(
 declare global {
   interface HTMLElementEventMap {
     'pw:price-source-files': CustomEvent<WorkbenchEventMap['pw:price-source-files']>;
+    'pw:sheet-select': CustomEvent<WorkbenchEventMap['pw:sheet-select']>;
     'pw:svg-files': CustomEvent<WorkbenchEventMap['pw:svg-files']>;
     'pw:font-files': CustomEvent<WorkbenchEventMap['pw:font-files']>;
     'pw:match-apply': CustomEvent<WorkbenchEventMap['pw:match-apply']>;

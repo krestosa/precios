@@ -13,6 +13,8 @@ import type {
 
 export type UiLoadStatus = 'empty' | 'loading' | 'ready' | 'error';
 export type ProcessingState = 'queued' | 'processing' | 'ready' | 'warning' | 'error';
+export type WorkbookSheetVisibility = 'visible' | 'hidden' | 'veryHidden';
+export type SheetSupportStatus = 'unknown' | 'supported' | 'unsupported';
 export type PreviewMode = 'original' | 'result' | 'overlay';
 export type FontUiStatus = 'installed' | 'uploaded' | 'missing' | 'mismatch';
 export type LayoutIssueKind = 'overflow' | 'alignment' | 'missing-font';
@@ -23,11 +25,34 @@ export interface SourceCapabilityView {
   readonly xls: boolean;
 }
 
+export interface WorkbookSheetView {
+  readonly name: string;
+  readonly index: number;
+  readonly visibility: WorkbookSheetVisibility;
+  readonly supportStatus?: SheetSupportStatus;
+  readonly message?: string;
+}
+
+export interface WorkbookSheetSummaryView {
+  readonly rowCount: number;
+  readonly columnCount: number;
+  readonly normalGroupCount: number;
+  readonly eminentGroupCount?: number;
+  readonly warnings?: readonly string[];
+}
+
 export interface PriceSourceView {
   readonly status: UiLoadStatus;
   readonly fileName?: string;
   readonly capabilities: SourceCapabilityView;
   readonly message?: string;
+  readonly sheets?: readonly WorkbookSheetView[];
+  readonly selectedSheetName?: string;
+  readonly suggestedSheetName?: string;
+  readonly sheetSelectionRequired?: boolean;
+  readonly sheetProcessingState?: ProcessingState;
+  readonly sheetMessage?: string;
+  readonly selectedSheetSummary?: WorkbookSheetSummaryView;
 }
 
 export interface PreviewAsset {
