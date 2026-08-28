@@ -1,3 +1,5 @@
+import './tokens/tokens.css';
+
 const appRoot = document.querySelector<HTMLElement>('#app');
 
 if (appRoot === null) {
