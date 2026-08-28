@@ -37,9 +37,11 @@ jobs:
           BUILD_TIMESTAMP: ${{ github.event.head_commit.timestamp || '' }}
         run: sh ./handoff-output/install-build.sh
 
+      - name: Install focal QA dependencies
+        run: npm ci
+
       - name: Run W27 focal regressions
         run: |
-          cd handoff-output
           ./node_modules/.bin/vitest run \
             tests/runtime/deep-runtime-stabilization.e2e.test.ts \
             tests/runtime/font-resolver-dispose-race.test.ts \
