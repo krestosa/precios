@@ -10,7 +10,8 @@
     "allowSyntheticDefaultImports": true,
     "types": ["vite/client"],
     "noUnusedLocals": true,
-    "noUnusedParameters": true
+    "noUnusedParameters": true,
+    "noPropertyAccessFromIndexSignature": false
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts"]
 }

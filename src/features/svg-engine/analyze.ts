@@ -167,7 +167,9 @@ export function analyzeSvg(svg: string): SvgAnalysisResult {
         const descriptor: SvgTargetDescriptor = {
           id: `${region.path}:${placeholder.role}:${occurrence}`,
           locator: { kind: 'placeholder', literal: placeholder.literal, occurrence },
-          placeholder: { kind: placeholder.role, literal: placeholder.literal },
+          placeholder: placeholder.role === 'NORMAL'
+            ? { kind: 'NORMAL', literal: '$$$$' }
+            : { kind: 'EMINENT', literal: '@@@@' },
           ...(contractStyle === undefined ? {} : { style: contractStyle }),
         };
         targets.push({
