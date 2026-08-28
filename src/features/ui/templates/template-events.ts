@@ -15,6 +15,7 @@ export interface UiTemplateEventMap {
   'ui:preflight-request': Record<string, never>;
   'ui:export-request': { readonly kind: ExportKind; readonly fileIds: readonly string[]; readonly manifestFormat?: ManifestUiFormat };
   'ui:details-open': Record<string, never>;
+  'ui:reset': Record<string, never>;
 }
 
 export function emitUiTemplateEvent<Name extends keyof UiTemplateEventMap>(target: EventTarget, name: Name, detail: UiTemplateEventMap[Name]): void {

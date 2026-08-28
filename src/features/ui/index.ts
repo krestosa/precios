@@ -18,3 +18,15 @@ export {
   type WorkbenchProgressView,
   type WorkbenchViewModel,
 } from './models';
+export {
+  installPreciosAppControl,
+  PRECIOS_APP_CONTROL_EVENTS,
+  PRECIOS_APP_CONTROL_VERSION,
+  type PreciosAppCommandDescriptor,
+  type PreciosAppCommandName,
+  type PreciosAppControlApi,
+  type PreciosAppControlError,
+  type PreciosAppControlResult,
+  type PreciosAppDiagnostics,
+  type PreciosAppStateSnapshot,
+} from './control-api';

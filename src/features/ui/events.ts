@@ -13,6 +13,8 @@ export interface WorkbenchEventMap {
   'pw:preflight-request': { readonly fileIds: readonly string[] };
   'pw:preview-command': { readonly fileId: string; readonly command: PreviewCommand; readonly zoom: number };
   'pw:issue-action': { readonly fileId: string; readonly issueId: string; readonly kind: LayoutIssueKind };
+  'pw:reset-request': Record<string, never>;
+  'pw:state-change': { readonly revision: number };
   'pw:export-request': {
     readonly kind: ExportKind;
     readonly fileIds: readonly string[];
@@ -45,6 +47,8 @@ declare global {
     'pw:preflight-request': CustomEvent<WorkbenchEventMap['pw:preflight-request']>;
     'pw:preview-command': CustomEvent<WorkbenchEventMap['pw:preview-command']>;
     'pw:issue-action': CustomEvent<WorkbenchEventMap['pw:issue-action']>;
+    'pw:reset-request': CustomEvent<WorkbenchEventMap['pw:reset-request']>;
+    'pw:state-change': CustomEvent<WorkbenchEventMap['pw:state-change']>;
     'pw:export-request': CustomEvent<WorkbenchEventMap['pw:export-request']>;
   }
 }

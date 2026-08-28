@@ -6,7 +6,7 @@ import { mountStaticShadow, requiredElement } from '../../../components/shadow';
 import type { DetailsDrawer } from '../../../components';
 import { dispatchWorkbenchEvent, type PreviewCommand } from '../events';
 import { EMPTY_WORKBENCH_MODEL, type PreviewMode, type WorkbenchFileView, type WorkbenchViewModel } from '../models';
-import { WorkbenchUiStore } from '../ui-store';
+import { WorkbenchUiStore, type WorkbenchUiState } from '../ui-store';
 import type { UiTemplateEventMap, WorkbenchShellTemplate, TraceTemplate } from '../templates';
 import '../templates';
 
@@ -16,6 +16,7 @@ export class PriceWorkbench extends HTMLElement {
   private readonly trace: TraceTemplate;
   private readonly ui = new WorkbenchUiStore();
   private modelValue: WorkbenchViewModel = EMPTY_WORKBENCH_MODEL;
+  private stateRevision = 0;
 
   constructor() {
     super();
@@ -29,6 +30,7 @@ export class PriceWorkbench extends HTMLElement {
 
   get model(): WorkbenchViewModel { return this.modelValue; }
   set model(value: WorkbenchViewModel) { this.modelValue = value; this.refresh(); }
+  get uiState(): WorkbenchUiState { return this.ui.state; }
   connectedCallback(): void { this.refresh(); }
 
   private get selectedFile(): WorkbenchFileView | undefined {
@@ -49,6 +51,7 @@ export class PriceWorkbench extends HTMLElement {
     this.onUi('ui:preflight-request', () => dispatchWorkbenchEvent(this, 'pw:preflight-request', { fileIds: this.modelValue.files.map((file) => file.id) }));
     this.onUi('ui:export-request', (detail) => dispatchWorkbenchEvent(this, 'pw:export-request', detail));
     this.onUi('ui:details-open', () => { this.ui.setDetailsOpen(true); this.refresh(); });
+    this.onUi('ui:reset', () => this.resetFlow());
   }
 
   private onUi<Name extends keyof UiTemplateEventMap>(name: Name, handler: (detail: UiTemplateEventMap[Name]) => void): void {
@@ -56,6 +59,14 @@ export class PriceWorkbench extends HTMLElement {
   }
 
   private isPreviewMode(value: string): value is PreviewMode { return value === 'original' || value === 'result' || value === 'overlay'; }
+
+  private resetFlow(): void {
+    this.ui.reset();
+    this.modelValue = EMPTY_WORKBENCH_MODEL;
+    this.refresh();
+    dispatchWorkbenchEvent(this, 'pw:reset-request', {});
+  }
+
   private handlePreviewCommand(fileId: string, command: PreviewCommand): void {
     if (command === 'zoom-in') this.ui.zoomIn();
     if (command === 'zoom-out') this.ui.zoomOut();
@@ -70,6 +81,8 @@ export class PriceWorkbench extends HTMLElement {
     this.drawer.open = this.ui.state.detailsOpen;
     this.drawer.heading = selected ? `Provenance · ${selected.fileName}` : 'Provenance';
     this.trace.file = selected;
+    this.stateRevision += 1;
+    dispatchWorkbenchEvent(this, 'pw:state-change', { revision: this.stateRevision });
   }
 }
 
