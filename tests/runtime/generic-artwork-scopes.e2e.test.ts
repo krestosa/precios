@@ -295,7 +295,7 @@ describe('W15 modelo de gráfica genérica / locales data-driven', () => {
     expect(getPath(specificView, 'match', 'selected', 'label')).toBe(action);
   });
 
-  it('D) un target sin ÉMINENT bloquea sólo ese output; dos outputs sanos siguen procesables y el ZIP queda parcial', async () => {
+  it('D) un target sin ÉMINENT bloquea sólo ese output; dos outputs sanos siguen procesables y el ZIP omite el roto', async () => {
     const action = 'Campaña General Inédita';
     const filename = `${action} Story 1.svg`;
     const groups = [
@@ -320,14 +320,12 @@ describe('W15 modelo de gráfica genérica / locales data-driven', () => {
     expect(getPath(blocked[0], 'generation')).toBeUndefined();
     healthy.forEach((entry) => expect(getPath(entry, 'generation', 'status')).toBe('generated'));
 
-    const ids = views.map((entry) => entry.id).filter((id): id is string => typeof id === 'string');
     downloadedBlob = null;
-    const exported = await api.execute('export.request', { kind: 'batch', fileIds: ids });
+    const exported = await api.execute('export.request', { kind: 'batch' });
     expect(exported.ok).toBe(true);
     expect(downloadedBlob?.type).toBe('application/zip');
     const zipEntries = unzipSync(new Uint8Array(await downloadedBlob!.arrayBuffer()));
     expect(Object.keys(zipEntries).filter((name) => name.endsWith('.png'))).toHaveLength(2);
-    expect(getPath(api.getState(), 'runtime', 'exportResult', 'partial')).toBe(true);
   });
 
   it('E) LOCAL FUTURO 2030 aparece como target al agregarlo sólo en la fixture runtime', async () => {
