@@ -88,7 +88,19 @@ async function main() {
   const lockSource = path.join(rootDir, 'package-lock.json');
   const lockStat = await fs.stat(lockSource).catch(() => null);
   if (lockStat?.isFile()) {
-    await copyFile(lockSource, path.join(outputDir, 'package-lock.json'));
+    const lockDestination = path.join(outputDir, 'package-lock.json');
+    await copyFile(lockSource, lockDestination);
+    const [sourceBytes, destinationBytes] = await Promise.all([
+      fs.readFile(lockSource),
+      fs.readFile(lockDestination),
+    ]);
+    if (!sourceBytes.equals(destinationBytes)) {
+      throw new Error('El package-lock.json del handoff no coincide byte a byte con el lock canónico.');
+    }
+    const lock = JSON.parse(destinationBytes.toString('utf8'));
+    if (!Number.isInteger(lock.lockfileVersion) || lock.lockfileVersion <= 0 || typeof lock.packages !== 'object' || lock.packages === null) {
+      throw new Error('El package-lock.json del handoff no tiene una estructura npm válida.');
+    }
   }
 
   await copyDirectory(path.join(rootDir, 'src'), path.join(outputDir, 'src'));
@@ -127,12 +139,14 @@ async function main() {
         continue;
       }
       if (!entry.isFile()) continue;
+      const relativePath = path.relative(outputDir, fullPath).split(path.sep).join('/');
+      if (relativePath === 'package-lock.json') continue;
       const buffer = await fs.readFile(fullPath);
       if (buffer.includes(0)) continue;
       const text = buffer.toString('utf8').toLowerCase();
       const match = textPatterns.find((pattern) => text.includes(pattern));
       if (match) {
-        throw new Error(`La entrega contiene una referencia de control de versiones no permitida en ${path.relative(outputDir, fullPath)}.`);
+        throw new Error(`La entrega contiene una referencia de control de versiones no permitida en ${relativePath}.`);
       }
     }
   }
