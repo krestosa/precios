@@ -1,6 +1,13 @@
 import type { FilePreflight, PreflightIssue } from '../domain/contracts';
 import { reconcilePriceSlots } from '../domain/pricing/reconcile';
-import { adaptObservedPricingMatrix, loadLocalWorkbook, type PricingMatrixAdaptedRow } from '../features/data-source';
+import {
+  adaptPricingMatrix,
+  detectPricingMatrixSchema,
+  openLocalWorkbook,
+  type LocalWorkbookOpenResult,
+  type PricingMatrixAdaptedRow,
+  type WorkbookSheetInfo,
+} from '../features/data-source';
 import { buildExportBundle, type ExportBundleResult } from '../features/export';
 import { BrowserFontResolver, requiredFontsFromSvgAnalyses, type FontResolution } from '../features/font-resolver';
 import { matchName, SessionMatchStore } from '../features/matching';
@@ -13,14 +20,16 @@ import {
   type SvgEngineGenerationResult,
 } from '../features/svg-engine';
 import type { WorkbenchEventMap } from '../features/ui/events';
-import type { FontView, WorkbenchFileView } from '../features/ui/models';
+import type { FontView, WorkbookSheetView, WorkbenchFileView } from '../features/ui/models';
 import type { PriceWorkbench } from '../features/ui/workbench';
 import type { PreciosAppCommandName } from '../features/ui/control-api/types';
 import {
+  failedFontView,
   failedSvgView,
   fileTrace,
   fileView,
   formatUploadMetadata,
+  pendingFontView,
   pendingSvgView,
   registeredFontView,
   resolutionFontView,
@@ -66,6 +75,16 @@ function triggerDownload(fileName: string, bytes: string | Uint8Array, mimeType:
   setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
+function workbookSheetView(sheet: WorkbookSheetInfo, previous?: WorkbookSheetView): WorkbookSheetView {
+  return {
+    name: sheet.name,
+    index: sheet.index,
+    visibility: sheet.visibility,
+    ...(previous?.supportStatus === undefined ? {} : { supportStatus: previous.supportStatus }),
+    ...(previous?.message === undefined ? {} : { message: previous.message }),
+  };
+}
+
 export function installAppRuntimeController(workbench: PriceWorkbench): AppRuntimeController {
   const host = workbench as RuntimeHost;
   host[APP_SLOT]?.dispose();
@@ -74,7 +93,10 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
   let operationRevision = 0;
   let activeUpload: { readonly command: UploadCommand; readonly revision: number } | null = null;
   let source: RuntimeSource | null = null;
+  let workbookSession: LocalWorkbookOpenResult | null = null;
+  let workbookFile: File | null = null;
   let fileSequence = 0;
+  let fontSequence = 0;
   let files = new Map<string, RuntimeFile>();
   let svgOrder: string[] = [];
   let pendingSvgFiles = new Map<string, File>();
@@ -114,7 +136,8 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
     const resolutions = typeof document === 'undefined' || document.fonts === undefined
       ? []
       : fontResolver.resolveRequired(required);
-    const merged = new Map<string, FontView>(uploadedFontViews);
+    const merged = new Map<string, FontView>();
+    uploadedFontViews.forEach((view) => merged.set(view.id, view));
     resolutions.map(resolutionFontView).forEach((view) => {
       if (!merged.has(view.id)) merged.set(view.id, view);
     });
@@ -163,6 +186,15 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
           ...model.source,
           status: 'error',
           message: model.source.message ?? message,
+        };
+      }
+      if (command === 'source.selectSheet') {
+        const { selectedSheetSummary: _summary, ...withoutSummary } = model.source;
+        model.source = {
+          ...withoutSummary,
+          status: 'error',
+          sheetProcessingState: 'error',
+          sheetMessage: `No se pudo procesar la hoja seleccionada: ${message}`,
         };
       }
       if (command === 'svg.load') model.svgLoadStatus = 'error';
@@ -234,10 +266,29 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
     for (const file of files.values()) recomputeMatch(file);
   };
 
+  const clearSourceDerived = (): void => {
+    source = null;
+    exportResult = null;
+    matchStore.clear();
+    delete model.preflight;
+    for (const file of files.values()) {
+      file.match = matchName(fileStem(file.fileName), []);
+      file.priceAlternatives = [];
+      delete file.priceIssue;
+      delete file.preflight;
+      delete file.generation;
+    }
+  };
+
+  const sourceErrorMessage = (diagnostics: readonly { readonly code: string; readonly message: string }[], fallback: string): string =>
+    diagnostics.map((item) => diagnosticMessage(item.code, item.message)).join(' · ') || fallback;
+
   const onSourceFiles = async (detail: WorkbenchEventMap['pw:price-source-files']): Promise<void> => {
     const revision = beginUpload('source.load');
     const selected = detail.files[0];
-    exportResult = null;
+    workbookSession = null;
+    workbookFile = null;
+    clearSourceDerived();
     delete model.progress;
     model.source = {
       status: 'loading',
@@ -249,7 +300,6 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
 
     try {
       if (detail.files.length !== 1) {
-        source = null;
         model.source = {
           status: 'error',
           capabilities: { csv: true, xlsx: true, xls: true },
@@ -262,25 +312,64 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
       const file = detail.files[0]!;
       const data = await file.arrayBuffer();
       if (!isCurrentUpload('source.load', revision)) return;
-      const loaded = loadLocalWorkbook({ sourceId: `local:${file.name}`, fileName: file.name, data });
-      const readySnapshots = loaded.snapshots.filter((snapshot) => snapshot.status === 'ready');
-      if (readySnapshots.length === 0) {
-        source = null;
+      const opened = openLocalWorkbook({ sourceId: `local:${file.name}`, fileName: file.name, data });
+
+      if (opened.status === 'error') {
         model.source = {
           status: 'error',
           fileName: file.name,
           capabilities: { csv: true, xlsx: true, xls: true },
-          message: `Error · ${formatUploadMetadata(file)} · ${loaded.diagnostics.map((item) => diagnosticMessage(item.code, item.message)).join(' · ') || 'La fuente no produjo datos utilizables.'}`,
+          message: `Error · ${formatUploadMetadata(file)} · ${sourceErrorMessage(opened.diagnostics, 'La fuente no pudo abrirse.')}`,
         };
         publish();
         return;
       }
 
-      const adapted = readySnapshots.map((snapshot) => adaptObservedPricingMatrix(snapshot));
+      if (opened.format === 'workbook') {
+        workbookSession = opened;
+        workbookFile = file;
+        model.source = {
+          status: 'ready',
+          fileName: file.name,
+          capabilities: { csv: true, xlsx: true, xls: true },
+          message: `Archivo abierto · ${formatUploadMetadata(file)}`,
+          sheets: opened.sheets.map((sheet) => workbookSheetView(sheet)),
+          sheetSelectionRequired: true,
+          sheetMessage: 'Seleccioná la hoja de datos para continuar.',
+        };
+        publish();
+        return;
+      }
+
+      const snapshot = opened.csvSnapshot;
+      if (snapshot === undefined || snapshot.status !== 'ready') {
+        model.source = {
+          status: 'error',
+          fileName: file.name,
+          capabilities: { csv: true, xlsx: true, xls: true },
+          message: `Error · ${formatUploadMetadata(file)} · La fuente CSV no produjo datos utilizables.`,
+        };
+        publish();
+        return;
+      }
+
+      const sheetInfo = opened.sheets[0];
+      const adapted = adaptPricingMatrix(snapshot, sheetInfo === undefined ? {} : { sheetInfo });
+      if (!adapted.supported) {
+        model.source = {
+          status: 'error',
+          fileName: file.name,
+          capabilities: { csv: true, xlsx: true, xls: true },
+          message: `Error · ${formatUploadMetadata(file)} · ${sourceErrorMessage(adapted.diagnostics, 'La fuente no contiene una matriz de precios compatible.')}`,
+        };
+        publish();
+        return;
+      }
+
       source = {
         fileName: file.name,
-        rows: adapted.flatMap((item) => item.rows),
-        diagnostics: [...loaded.diagnostics, ...adapted.flatMap((item) => item.diagnostics)],
+        rows: adapted.rows,
+        diagnostics: [...opened.diagnostics, ...adapted.diagnostics],
       };
       model.source = {
         status: 'ready',
@@ -293,7 +382,7 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
       publish();
     } catch (error) {
       if (!isCurrentUpload('source.load', revision)) return;
-      source = null;
+      clearSourceDerived();
       model.source = {
         status: 'error',
         ...(selected === undefined ? {} : { fileName: selected.name }),
@@ -311,6 +400,129 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
         finishUpload('source.load', revision);
       }
     }
+  };
+
+  const updateSelectedSheetSupport = (
+    sheets: readonly WorkbookSheetView[],
+    sheetName: string,
+    supportStatus: 'supported' | 'unsupported',
+    message?: string,
+  ): readonly WorkbookSheetView[] => sheets.map((sheet) =>
+    sheet.name !== sheetName
+      ? sheet
+      : {
+          ...sheet,
+          supportStatus,
+          ...(message === undefined ? {} : { message }),
+        },
+  );
+
+  const onSheetSelect = async (detail: WorkbenchEventMap['pw:sheet-select']): Promise<void> => {
+    const session = workbookSession;
+    const file = workbookFile;
+    const revision = ++operationRevision;
+    activeUpload = null;
+    if (session === null || session.format !== 'workbook' || file === null) {
+      throw new Error('No hay un workbook abierto para seleccionar una hoja.');
+    }
+
+    const knownSheet = session.sheets.find((sheet) => sheet.name === detail.sheetName);
+    if (knownSheet === undefined) throw new Error(`La hoja ${detail.sheetName} no existe en el workbook abierto.`);
+
+    clearSourceDerived();
+    const { selectedSheetSummary: _summary, sheetMessage: _oldSheetMessage, ...sourceWithoutPrevious } = model.source;
+    model.source = {
+      ...sourceWithoutPrevious,
+      status: 'ready',
+      fileName: file.name,
+      sheets: session.sheets.map((sheet) => workbookSheetView(
+        sheet,
+        model.source.sheets?.find((candidate) => candidate.name === sheet.name),
+      )),
+      selectedSheetName: detail.sheetName,
+      sheetSelectionRequired: true,
+      sheetProcessingState: 'processing',
+      sheetMessage: 'Procesando hoja seleccionada…',
+    };
+    publish();
+
+    await Promise.resolve();
+    if (disposed || revision !== operationRevision) return;
+
+    const selected = session.selectSheet(detail.sheetName);
+    if (selected.status !== 'ready' || selected.snapshot === undefined) {
+      const message = sourceErrorMessage(selected.diagnostics, 'La hoja seleccionada no pudo procesarse.');
+      model.source = {
+        ...model.source,
+        status: 'error',
+        sheets: updateSelectedSheetSupport(model.source.sheets ?? [], detail.sheetName, 'unsupported', message),
+        sheetProcessingState: 'error',
+        sheetMessage: message,
+      };
+      publish();
+      return;
+    }
+
+    const sheetInfo = selected.sheet ?? knownSheet;
+    const detection = detectPricingMatrixSchema(selected.snapshot, { sheetInfo });
+    if (!detection.supported) {
+      const message = sourceErrorMessage(detection.diagnostics, 'La hoja seleccionada no contiene una estructura de precios compatible.');
+      model.source = {
+        ...model.source,
+        status: 'error',
+        sheets: updateSelectedSheetSupport(model.source.sheets ?? [], detail.sheetName, 'unsupported', message),
+        sheetProcessingState: 'error',
+        sheetMessage: message,
+      };
+      publish();
+      return;
+    }
+
+    const adapted = adaptPricingMatrix(selected.snapshot, { sheetInfo });
+    if (!adapted.supported) {
+      const message = sourceErrorMessage(adapted.diagnostics, 'La hoja seleccionada no puede adaptarse con seguridad.');
+      model.source = {
+        ...model.source,
+        status: 'error',
+        sheets: updateSelectedSheetSupport(model.source.sheets ?? [], detail.sheetName, 'unsupported', message),
+        sheetProcessingState: 'error',
+        sheetMessage: message,
+      };
+      publish();
+      return;
+    }
+
+    source = {
+      fileName: file.name,
+      rows: adapted.rows,
+      diagnostics: [...selected.diagnostics, ...adapted.diagnostics],
+    };
+    const warnings = adapted.diagnostics
+      .filter((diagnostic) => diagnostic.code !== 'DATA_EMINENT_BLOCK_ABSENT')
+      .map((diagnostic) => diagnostic.message);
+    const eminentGroupCount = detection.sheet.headers.eminentGroups.length > 0
+      ? detection.sheet.headers.eminentGroups.length
+      : undefined;
+    model.source = {
+      ...model.source,
+      status: 'ready',
+      sheets: updateSelectedSheetSupport(model.source.sheets ?? [], detail.sheetName, 'supported'),
+      selectedSheetName: detail.sheetName,
+      sheetSelectionRequired: true,
+      sheetProcessingState: warnings.length > 0 ? 'warning' : 'ready',
+      sheetMessage: warnings.length > 0 ? 'Hoja procesada con advertencias visibles.' : 'Hoja procesada correctamente.',
+      selectedSheetSummary: {
+        rowCount: sheetInfo.rowCount,
+        columnCount: sheetInfo.columnCount,
+        normalGroupCount: detection.sheet.headers.normalGroups.length,
+        ...(eminentGroupCount === undefined ? {} : { eminentGroupCount }),
+        ...(warnings.length === 0 ? {} : { warnings }),
+      },
+      message: `${sourceReadyMessage(source)} · ${formatUploadMetadata(file)}`,
+    };
+    refreshMatching();
+    delete model.preflight;
+    publish();
   };
 
   const onSvgFiles = async (detail: WorkbenchEventMap['pw:svg-files']): Promise<void> => {
@@ -434,8 +646,15 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
     let completed = 0;
     let registeredCount = 0;
     let errorCount = 0;
+    const staged = detail.files.map((file) => {
+      fontSequence += 1;
+      const id = `font-upload:${fontSequence}:${file.name}`;
+      uploadedFontViews.set(id, pendingFontView(id, file));
+      return { id, file };
+    });
     if (total > 0) model.progress = { value: 0, max: total, label: `0 de ${total} fuentes procesadas` };
     else delete model.progress;
+    refreshFontModel();
     publish();
 
     try {
@@ -445,30 +664,34 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
         return;
       }
 
-      for (const file of detail.files) {
+      for (const entry of staged) {
         if (!isCurrentUpload('font.load', revision)) return;
         model.progress = {
           value: completed,
           max: total,
-          label: `Registrando ${file.name} · ${completed} de ${total} completadas`,
+          label: `Registrando ${entry.file.name} · ${completed} de ${total} completadas`,
         };
         publish();
 
         try {
-          const bytes = await file.arrayBuffer();
+          const bytes = await entry.file.arrayBuffer();
           if (!isCurrentUpload('font.load', revision)) return;
-          const result = await fontResolver.registerUpload({ name: file.name, mimeType: file.type, bytes });
+          const result = await fontResolver.registerUpload({ name: entry.file.name, mimeType: entry.file.type, bytes });
           if (!isCurrentUpload('font.load', revision)) return;
           const view = registeredFontView(result);
+          uploadedFontViews.delete(entry.id);
           if (view === undefined) {
             errorCount += 1;
+            const message = sourceErrorMessage(result.diagnostics, 'La fuente no pudo registrarse.');
+            uploadedFontViews.set(entry.id, failedFontView(entry.id, entry.file, message));
           } else {
             registeredCount += 1;
-            uploadedFontViews.set(view.id, view);
+            uploadedFontViews.set(view.id, { ...view, displayName: entry.file.name });
           }
-        } catch {
+        } catch (error) {
           if (!isCurrentUpload('font.load', revision)) return;
           errorCount += 1;
+          uploadedFontViews.set(entry.id, failedFontView(entry.id, entry.file, `Error · ${errorMessage(error)}`));
         } finally {
           if (isCurrentUpload('font.load', revision)) {
             completed += 1;
@@ -679,12 +902,15 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
     operationRevision += 1;
     activeUpload = null;
     source = null;
+    workbookSession = null;
+    workbookFile = null;
     files = new Map();
     svgOrder = [];
     pendingSvgFiles = new Map();
     failedSvgFiles = new Map();
     uploadedFontViews = new Map();
     fileSequence = 0;
+    fontSequence = 0;
     exportResult = null;
     previewCommand = null;
     matchStore.clear();
@@ -699,6 +925,7 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
       const task = Promise.resolve(handler((event as CustomEvent<WorkbenchEventMap[Name]>).detail));
       const commandByEvent: Partial<Record<keyof WorkbenchEventMap, PreciosAppCommandName>> = {
         'pw:price-source-files': 'source.load',
+        'pw:sheet-select': 'source.selectSheet',
         'pw:svg-files': 'svg.load',
         'pw:font-files': 'font.load',
         'pw:match-apply': 'matching.apply',
@@ -714,6 +941,7 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
   };
 
   listen('pw:price-source-files', onSourceFiles);
+  listen('pw:sheet-select', onSheetSelect);
   listen('pw:svg-files', onSvgFiles);
   listen('pw:font-files', onFontFiles);
   listen('pw:match-apply', onMatchApply);
@@ -752,6 +980,8 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
       disposed = true;
       operationRevision += 1;
       activeUpload = null;
+      workbookSession = null;
+      workbookFile = null;
       for (const [name, listener] of listeners) workbench.removeEventListener(name, listener);
       listeners.length = 0;
       pending.clear();
