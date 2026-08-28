@@ -22,6 +22,6 @@ export default defineConfig({
     passWithNoTests: false,
     clearMocks: true,
     restoreMocks: true,
-    include: ['tests/**/*.{test,spec}.ts'],
+    include: ['tests/**/*.{test,spec}.ts', 'src/**/*.{test,spec}.ts'],
   },
 });
