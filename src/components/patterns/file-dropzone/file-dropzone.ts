@@ -13,7 +13,6 @@ export class FileDropzone extends HTMLElement {
   private readonly helperNode: HTMLElement;
   private readonly stateNode: HTMLElement;
   private readonly input: HTMLInputElement;
-  private dragging = false;
 
   constructor() {
     super();
@@ -58,7 +57,7 @@ export class FileDropzone extends HTMLElement {
     this.stateNode.textContent = `Estado: ${labels[this.status]}`;
   }
 
-  private setDragging(value: boolean): void { this.dragging = value; this.zone.dataset.drag = String(value); }
+  private setDragging(value: boolean): void { this.zone.dataset.drag = String(value); }
   private emitFiles(files: FileList | readonly File[]): void {
     this.dispatchEvent(new CustomEvent<FilesSelectedDetail>('files-selected', { detail: { files: Array.from(files) }, bubbles: true, composed: true }));
   }

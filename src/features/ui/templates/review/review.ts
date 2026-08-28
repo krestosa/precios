@@ -55,7 +55,7 @@ export class ReviewTemplate extends HTMLElement {
     this.select.addEventListener('change', () => this.emitChoice());
     this.applySession.addEventListener('click', () => this.emitApply('session'));
     this.applyBatch.addEventListener('click', () => this.emitApply('batch'));
-    this.tabs.addEventListener('tab-change', (event) => emitUiTemplateEvent(this, 'ui:preview-mode', { mode: (event as CustomEvent<{ readonly id: string }>).detail.id as PreviewMode }));
+    this.tabs.addEventListener('tab-change', (event) => { event.stopPropagation(); emitUiTemplateEvent(this, 'ui:preview-mode', { mode: (event as CustomEvent<{ readonly id: string }>).detail.id as PreviewMode }); });
     root.querySelectorAll<HTMLElement>('[data-command]').forEach((button) => button.addEventListener('click', () => {
       const file = this.fileValue; const command = button.dataset.command;
       if (file && (command === 'fit' || command === 'zoom-in' || command === 'zoom-out' || command === 'reset')) emitUiTemplateEvent(this, 'ui:preview-command', { fileId: file.id, command });

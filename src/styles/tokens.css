@@ -16,6 +16,8 @@
   --pw-primitive-color-amber-800: #8a4b08;
   --pw-primitive-color-red-50: #fff0ef;
   --pw-primitive-color-red-700: #b42318;
+  --pw-primitive-color-shadow-low: #11182714;
+  --pw-primitive-color-shadow-mid: #1118270f;
   --pw-primitive-color-overlay: #1118272e;
   --pw-primitive-font-family-ui: Inter, ui-sans-serif, system-ui, sans-serif;
   --pw-primitive-font-family-mono: ui-monospace, SFMono-Regular, Consolas, monospace;
@@ -45,8 +47,8 @@
   --pw-primitive-border-width-emphasis: 2px;
   --pw-primitive-border-width-focus: 3px;
   --pw-primitive-control-size-md: 2.25rem;
-  --pw-primitive-shadow-raised: 0 1px 2px #11182714, 0 8px 24px #1118270f;
-  --pw-primitive-shadow-overlay: 0 16px 48px #1118272e;
+  --pw-primitive-shadow-raised: 0 1px 2px var(--pw-primitive-color-shadow-low), 0 8px 24px var(--pw-primitive-color-shadow-mid);
+  --pw-primitive-shadow-overlay: 0 16px 48px var(--pw-primitive-color-overlay);
   --pw-primitive-motion-fast: 120ms;
   --pw-primitive-motion-normal: 180ms;
   --pw-primitive-motion-ease: cubic-bezier(0.2, 0, 0, 1);

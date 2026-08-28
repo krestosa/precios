@@ -4,5 +4,5 @@ header { display: flex; align-items: flex-start; justify-content: space-between;
 h2 { margin: 0; font-size: var(--pw-font-size-lg); line-height: var(--pw-line-height-tight); }
 p { margin: var(--pw-space-1) 0 0; color: var(--pw-color-text-muted); font-size: var(--pw-font-size-sm); line-height: var(--pw-line-height-normal); }
 .body { padding: var(--pw-space-4); }
-footer:empty, .actions:empty, p[hidden] { display: none; }
-footer:not(:empty) { padding: 0 var(--pw-space-4) var(--pw-space-4); }
+footer { padding: 0 var(--pw-space-4) var(--pw-space-4); }
+[hidden] { display: none !important; }

@@ -22,7 +22,7 @@ export class FontsTemplate extends HTMLElement {
     this.empty = requiredElement(root, '.empty');
     this.itemTemplate = requiredElement(root, '.font-template');
     this.dropzone = requiredElement(root, '.font-dropzone');
-    this.dropzone.addEventListener('files-selected', (event) => emitUiTemplateEvent(this, 'ui:font-files', (event as CustomEvent<FilesSelectedDetail>).detail));
+    this.dropzone.addEventListener('files-selected', (event) => { event.stopPropagation(); emitUiTemplateEvent(this, 'ui:font-files', (event as CustomEvent<FilesSelectedDetail>).detail); });
   }
 
   set fonts(value: readonly FontView[]) { this.fontsValue = value; this.sync(); }

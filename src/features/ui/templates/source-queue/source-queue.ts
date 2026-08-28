@@ -32,9 +32,9 @@ export class SourceQueueTemplate extends HTMLElement {
     this.sourceMessage = requiredElement(root, '.source-file .message');
     this.queue = requiredElement(root, '.queue');
     this.queueEmpty = requiredElement(root, '.queue-empty');
-    this.sourceDropzone.addEventListener('files-selected', (event) => emitUiTemplateEvent(this, 'ui:source-files', (event as CustomEvent<FilesSelectedDetail>).detail));
-    this.svgDropzone.addEventListener('files-selected', (event) => emitUiTemplateEvent(this, 'ui:svg-files', (event as CustomEvent<FilesSelectedDetail>).detail));
-    this.queue.addEventListener('item-activate', (event) => emitUiTemplateEvent(this, 'ui:file-activate', (event as CustomEvent<{ readonly id: string }>).detail));
+    this.sourceDropzone.addEventListener('files-selected', (event) => { event.stopPropagation(); emitUiTemplateEvent(this, 'ui:source-files', (event as CustomEvent<FilesSelectedDetail>).detail); });
+    this.svgDropzone.addEventListener('files-selected', (event) => { event.stopPropagation(); emitUiTemplateEvent(this, 'ui:svg-files', (event as CustomEvent<FilesSelectedDetail>).detail); });
+    this.queue.addEventListener('item-activate', (event) => { event.stopPropagation(); emitUiTemplateEvent(this, 'ui:file-activate', (event as CustomEvent<{ readonly id: string }>).detail); });
   }
 
   get view(): SourceQueueTemplateView | undefined { return this.viewValue; }
