@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   bootControlRuntime,
@@ -27,31 +28,50 @@ const MINIMAL_REAL_SHAPE_SVG = `
   <text x="24" y="126" font-family="Arial" font-size="24"><tspan>@@@@</tspan></text>
 </svg>`;
 
-function csvRow(code: string, action: string, normal: number, eminent: number): string {
-  return `,${code},${action},${normal},,,${code},${action},${eminent},`;
-}
-
-const PRICING_CSV = [
-  ',,,LOCAL TEST,LOCAL TEST,,,LOCAL TEST,LOCAL TEST',
-  ',,,SALON,DELI,,,SALON,DELI',
-  csvRow('T001', 'Tres Tiempos', 10000, 7500),
-  csvRow('D001', 'Story 1', 31001, 23001),
-  csvRow('D007', 'Story 7', 31007, 23007),
-  csvRow('F001', 'Feed 1', 32001, 24001),
-  csvRow('F007', 'Feed 7', 32007, 24007),
-  csvRow('M001', 'Mailing', 33000, 25000),
-  csvRow('Q137', SYNTHETIC_ACTION, 21000, 15750),
-].join('\n');
-
 function asFile(content: string, name: string, type: string): File {
   return new File([content], name, { type });
 }
 
+function clonePricingRow(
+  template: string,
+  code: string,
+  action: string,
+  normal: number,
+  eminent: number,
+): string {
+  return template
+    .replaceAll('1001', code)
+    .replaceAll('ROLL EXACTO', action)
+    .replace('10000', String(normal))
+    .replace('11000', '')
+    .replace('7500', String(eminent))
+    .replace('8250', '');
+}
+
+async function pricingCsv(): Promise<string> {
+  const base = await readFile(new URL('../fixtures/pricing/workflow-prices.csv', import.meta.url), 'utf8');
+  const lines = base.trimEnd().split(/\r?\n/u);
+  const template = lines.find((line) => line.includes('ROLL EXACTO'));
+  if (template === undefined) throw new Error('La fixture base no contiene la fila ROLL EXACTO esperada.');
+
+  return [
+    ...lines.slice(0, 3),
+    clonePricingRow(template, 'T001', 'Tres Tiempos', 10000, 7500),
+    clonePricingRow(template, 'D001', 'Story 1', 31001, 23001),
+    clonePricingRow(template, 'D007', 'Story 7', 31007, 23007),
+    clonePricingRow(template, 'F001', 'Feed 1', 32001, 24001),
+    clonePricingRow(template, 'F007', 'Feed 7', 32007, 24007),
+    clonePricingRow(template, 'M001', 'Mailing', 33000, 25000),
+    clonePricingRow(template, 'Q137', SYNTHETIC_ACTION, 21000, 15750),
+  ].join('\n');
+}
+
 async function loadPricingSource(api: ControlApi): Promise<void> {
+  const csv = await pricingCsv();
   await executeAndWaitForState(
     api,
     'source.load',
-    { files: asFile(PRICING_CSV, 'w9-pricing.csv', 'text/csv') },
+    { files: asFile(csv, 'w9-pricing.csv', 'text/csv') },
     (state) => getPath(state, 'source', 'status') === 'ready'
       && getPath(state, 'source', 'fileName') === 'w9-pricing.csv',
   );
