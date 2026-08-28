@@ -4,16 +4,18 @@ import type { SourceCell, SourceLoc, SourceRow, SourceSnapshot } from '../../dom
 import { type PriceSlot, type PriceTier, priceFieldFromRaw } from '../../domain/pricing/slots';
 import { normalizeCanonicalText, normalizeHeaderLiteral } from '../../utils/normalize/text';
 import { columnIndexToLabel } from '../../utils/parsing/tabular';
+import type { WorkbookSheetInfo, WorkbookSheetVisibility } from './local-workbook-source';
 
 export type PricingMatrixDiagnosticCode =
-  | 'DATA_ROW_COUNT_UNEXPECTED'
-  | 'DATA_COLUMN_COUNT_UNEXPECTED'
-  | 'DATA_UNKNOWN_COLUMN_48'
+  | 'unsupported-sheet-schema'
+  | 'DATA_HEADER_ROW_AMBIGUOUS'
   | 'DATA_HEADER_METADATA_UNINTERPRETED'
   | 'DATA_GROUP_HEADER_MISSING'
   | 'DATA_GROUP_PAIR_HEADER_CONFLICT'
   | 'DATA_CHANNEL_HEADER_UNEXPECTED'
   | 'DATA_TIER_GROUP_ASYMMETRY'
+  | 'DATA_EMINENT_BLOCK_ABSENT'
+  | 'DATA_SECOND_IDENTITY_UNCLASSIFIED'
   | 'DATA_PRODUCT_CODE_MISMATCH'
   | 'DATA_PRODUCT_NAME_MISMATCH'
   | 'DATA_PRODUCT_NAME_MISSING'
@@ -21,6 +23,11 @@ export type PricingMatrixDiagnosticCode =
   | 'DATA_PRICE_INVALID';
 
 export type PricingMatrixRowKind = 'product' | 'section' | 'empty';
+
+export interface PricingMatrixIdentityColumns {
+  readonly codeColumn: number;
+  readonly nameColumn: number;
+}
 
 export interface PricingMatrixHeaderGroup {
   readonly tier: PriceTier;
@@ -32,17 +39,48 @@ export interface PricingMatrixHeaderGroup {
 }
 
 export interface PricingMatrixHeaderCell {
+  readonly row: number;
   readonly column: number;
   readonly columnLabel: string;
   readonly raw: SourceCell['value'];
   readonly loc: SourceLoc;
 }
 
+export interface PricingMatrixMetadataRow {
+  readonly row: number;
+  readonly cells: readonly PricingMatrixHeaderCell[];
+}
+
 export interface PricingMatrixHeaderMetadata {
+  readonly headerRow: number | null;
+  readonly groupRow: number | null;
+  readonly dataStartRow: number | null;
+  readonly filterColumn: number | null;
+  readonly normalIdentity: PricingMatrixIdentityColumns | null;
+  readonly eminentIdentity: PricingMatrixIdentityColumns | null;
+  readonly metadataRows: readonly PricingMatrixMetadataRow[];
   readonly row1: readonly PricingMatrixHeaderCell[];
   readonly normalGroups: readonly PricingMatrixHeaderGroup[];
   readonly eminentGroups: readonly PricingMatrixHeaderGroup[];
-  readonly unknownColumn48: PricingMatrixHeaderCell;
+}
+
+export interface PricingMatrixDimensions {
+  readonly range: string | null;
+  readonly rowCount: number;
+  readonly columnCount: number;
+  readonly minRow: number | null;
+  readonly maxRow: number | null;
+  readonly minColumn: number | null;
+  readonly maxColumn: number | null;
+}
+
+export interface PricingMatrixSheetMetadata {
+  readonly name: string;
+  readonly index: number | null;
+  readonly visibility: WorkbookSheetVisibility | 'unknown';
+  readonly dimensions: PricingMatrixDimensions;
+  readonly headers: PricingMatrixHeaderMetadata;
+  readonly warnings: readonly Diagnostic[];
 }
 
 export interface PricingMatrixAdaptedRow {
@@ -56,19 +94,120 @@ export interface PricingMatrixAdaptedRow {
   readonly diagnostics: readonly Diagnostic[];
 }
 
-export interface PricingMatrixAdapterResult {
-  readonly rows: readonly PricingMatrixAdaptedRow[];
-  readonly slots: readonly PriceSlot[];
-  readonly headers: PricingMatrixHeaderMetadata;
+export interface PricingMatrixSchemaDetection {
+  readonly supported: boolean;
+  readonly sheet: PricingMatrixSheetMetadata;
   readonly diagnostics: readonly Diagnostic[];
 }
 
-const EXPECTED_ROWS = 86;
-const EXPECTED_COLUMNS = 92;
-const NORMAL_START = 4;
-const NORMAL_END = 47;
-const EMINENT_START = 51;
-const EMINENT_END = 92;
+export interface PricingMatrixAdapterOptions {
+  readonly sheetInfo?: WorkbookSheetInfo;
+}
+
+export interface PricingMatrixAdapterResult {
+  readonly supported: boolean;
+  readonly rows: readonly PricingMatrixAdaptedRow[];
+  readonly slots: readonly PriceSlot[];
+  readonly headers: PricingMatrixHeaderMetadata;
+  readonly sheet: PricingMatrixSheetMetadata;
+  readonly diagnostics: readonly Diagnostic[];
+}
+
+interface SourceBounds extends PricingMatrixDimensions {
+  readonly minRowValue: number;
+  readonly maxRowValue: number;
+  readonly minColumnValue: number;
+  readonly maxColumnValue: number;
+}
+
+interface IdentityRowCandidate {
+  readonly row: number;
+  readonly identities: readonly PricingMatrixIdentityColumns[];
+  readonly channelPairCount: number;
+  readonly hasFilter: boolean;
+  readonly score: number;
+}
+
+interface GroupDetectionResult {
+  readonly groups: readonly PricingMatrixHeaderGroup[];
+  readonly diagnostics: readonly Diagnostic[];
+  readonly unsafe: boolean;
+}
+
+function columnLabelToIndex(label: string): number | null {
+  const normalized = label.trim().toUpperCase();
+  if (!/^[A-Z]+$/u.test(normalized)) {
+    return null;
+  }
+
+  let value = 0;
+  for (const char of normalized) {
+    value = value * 26 + char.charCodeAt(0) - 64;
+  }
+  return value;
+}
+
+function cellColumn(cell: SourceCell, fallbackIndex: number): number {
+  if (typeof cell.loc.column === 'number') {
+    return cell.loc.column;
+  }
+
+  if (typeof cell.loc.column === 'string') {
+    const parsed = columnLabelToIndex(cell.loc.column);
+    if (parsed !== null) {
+      return parsed;
+    }
+  }
+
+  return columnLabelToIndex(cell.key) ?? fallbackIndex + 1;
+}
+
+function sourceBounds(snapshot: SourceSnapshot): SourceBounds {
+  let minRow = Number.POSITIVE_INFINITY;
+  let maxRow = 0;
+  let minColumn = Number.POSITIVE_INFINITY;
+  let maxColumn = 0;
+
+  for (const row of snapshot.rows) {
+    minRow = Math.min(minRow, row.row);
+    maxRow = Math.max(maxRow, row.row);
+    row.cells.forEach((cell, index) => {
+      const column = cellColumn(cell, index);
+      minColumn = Math.min(minColumn, column);
+      maxColumn = Math.max(maxColumn, column);
+    });
+  }
+
+  if (!Number.isFinite(minRow) || !Number.isFinite(minColumn) || maxRow === 0 || maxColumn === 0) {
+    return {
+      range: null,
+      rowCount: 0,
+      columnCount: 0,
+      minRow: null,
+      maxRow: null,
+      minColumn: null,
+      maxColumn: null,
+      minRowValue: 1,
+      maxRowValue: 0,
+      minColumnValue: 1,
+      maxColumnValue: 0,
+    };
+  }
+
+  return {
+    range: `${columnIndexToLabel(minColumn)}${minRow}:${columnIndexToLabel(maxColumn)}${maxRow}`,
+    rowCount: maxRow - minRow + 1,
+    columnCount: maxColumn - minColumn + 1,
+    minRow,
+    maxRow,
+    minColumn,
+    maxColumn,
+    minRowValue: minRow,
+    maxRowValue: maxRow,
+    minColumnValue: minColumn,
+    maxColumnValue: maxColumn,
+  };
+}
 
 function rowAt(snapshot: SourceSnapshot, rowNumber: number): SourceRow | undefined {
   return snapshot.rows.find((row) => row.row === rowNumber);
@@ -80,12 +219,10 @@ function cellAt(row: SourceRow | undefined, column: number): SourceCell | undefi
   }
 
   const label = columnIndexToLabel(column);
-  return (
-    row.cells.find(
-      (cell) =>
-        cell.loc.column === column || cell.loc.column === label || cell.key.toUpperCase() === label,
-    ) ?? row.cells[column - 1]
-  );
+  return row.cells.find((cell, index) => {
+    const actualColumn = cellColumn(cell, index);
+    return actualColumn === column || cell.key.toUpperCase() === label;
+  });
 }
 
 function fallbackLoc(snapshot: SourceSnapshot, row: number, column: number): SourceLoc {
@@ -111,6 +248,11 @@ function textValue(value: SourceCell['value']): string | null {
   return text.trim().length === 0 ? null : text;
 }
 
+function canonicalValue(value: SourceCell['value']): string {
+  const text = textValue(value);
+  return text === null ? '' : normalizeCanonicalText(text);
+}
+
 function provenanceRaw(value: SourceCell['value']): string | number | null {
   return typeof value === 'boolean' ? String(value) : value;
 }
@@ -132,6 +274,7 @@ function provenanceFor(
 function headerCell(snapshot: SourceSnapshot, row: number, column: number): PricingMatrixHeaderCell {
   const sourceCell = cellAt(rowAt(snapshot, row), column);
   return {
+    row,
     column,
     columnLabel: columnIndexToLabel(column),
     raw: sourceCell?.value ?? null,
@@ -139,99 +282,178 @@ function headerCell(snapshot: SourceSnapshot, row: number, column: number): Pric
   };
 }
 
-function maximumColumn(snapshot: SourceSnapshot): number {
-  let maximum = 0;
+function headerCellsForRow(
+  snapshot: SourceSnapshot,
+  row: number,
+  bounds: SourceBounds,
+): readonly PricingMatrixHeaderCell[] {
+  if (bounds.maxColumnValue < bounds.minColumnValue) {
+    return [];
+  }
+
+  const cells: PricingMatrixHeaderCell[] = [];
+  for (let column = bounds.minColumnValue; column <= bounds.maxColumnValue; column += 1) {
+    cells.push(headerCell(snapshot, row, column));
+  }
+  return cells;
+}
+
+function countChannelPairs(snapshot: SourceSnapshot, row: number, bounds: SourceBounds): number {
+  let count = 0;
+  for (let column = bounds.minColumnValue; column < bounds.maxColumnValue; column += 1) {
+    if (
+      canonicalValue(valueAt(snapshot, row, column)) === 'salon' &&
+      canonicalValue(valueAt(snapshot, row, column + 1)) === 'deli'
+    ) {
+      count += 1;
+      column += 1;
+    }
+  }
+  return count;
+}
+
+function identityPairsForRow(
+  snapshot: SourceSnapshot,
+  row: number,
+  bounds: SourceBounds,
+): readonly PricingMatrixIdentityColumns[] {
+  const pairs: PricingMatrixIdentityColumns[] = [];
+
+  for (let column = bounds.minColumnValue; column < bounds.maxColumnValue; column += 1) {
+    if (
+      canonicalValue(valueAt(snapshot, row, column)) === 'codigo' &&
+      canonicalValue(valueAt(snapshot, row, column + 1)) === 'nombre'
+    ) {
+      pairs.push({ codeColumn: column, nameColumn: column + 1 });
+      column += 1;
+    }
+  }
+
+  return pairs;
+}
+
+function findHeaderCandidates(snapshot: SourceSnapshot, bounds: SourceBounds): readonly IdentityRowCandidate[] {
+  const candidates: IdentityRowCandidate[] = [];
 
   for (const row of snapshot.rows) {
-    for (const cell of row.cells) {
-      if (typeof cell.loc.column === 'number') {
-        maximum = Math.max(maximum, cell.loc.column);
-      }
+    const identities = identityPairsForRow(snapshot, row.row, bounds);
+    if (identities.length === 0) {
+      continue;
     }
-    maximum = Math.max(maximum, row.cells.length);
+
+    const channelPairCount = countChannelPairs(snapshot, row.row, bounds);
+    const hasFilter = Array.from(
+      { length: Math.max(0, identities[0]!.codeColumn - bounds.minColumnValue) },
+      (_, index) => bounds.minColumnValue + index,
+    ).some((column) => canonicalValue(valueAt(snapshot, row.row, column)) === 'filtro');
+    const score = identities.length * 1_000 + channelPairCount * 10 + (hasFilter ? 1 : 0);
+    candidates.push({ row: row.row, identities, channelPairCount, hasFilter, score });
   }
 
-  return maximum;
+  return candidates.sort((left, right) => right.score - left.score || left.row - right.row);
 }
 
-function expectedChannel(column: number, pairStart: number): Channel {
-  return column === pairStart ? 'SALON' : 'DELI';
-}
-
-function channelMatches(raw: string | null, channel: Channel): boolean {
-  if (raw === null) {
-    return false;
+function findFilterColumn(
+  snapshot: SourceSnapshot,
+  headerRow: number,
+  normalIdentity: PricingMatrixIdentityColumns,
+  bounds: SourceBounds,
+): number | null {
+  for (let column = normalIdentity.codeColumn - 1; column >= bounds.minColumnValue; column -= 1) {
+    if (canonicalValue(valueAt(snapshot, headerRow, column)) === 'filtro') {
+      return column;
+    }
   }
-
-  const canonical = normalizeCanonicalText(raw);
-  return channel === 'SALON' ? canonical === 'salon' : canonical === 'deli';
+  return null;
 }
 
-function buildHeaderGroups(
+function hasEminentLabel(
+  snapshot: SourceSnapshot,
+  groupRow: number,
+  identity: PricingMatrixIdentityColumns,
+  bounds: SourceBounds,
+): boolean {
+  const start = Math.max(bounds.minColumnValue, identity.codeColumn - 1);
+  const end = Math.min(bounds.maxColumnValue, identity.nameColumn + 1);
+
+  for (let column = start; column <= end; column += 1) {
+    if (canonicalValue(valueAt(snapshot, groupRow, column)).includes('eminent')) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function detectGroups(
   snapshot: SourceSnapshot,
   tier: PriceTier,
+  headerRow: number,
+  groupRow: number,
   startColumn: number,
   endColumn: number,
-  diagnostics: Diagnostic[],
-): PricingMatrixHeaderGroup[] {
+): GroupDetectionResult {
   const groups: PricingMatrixHeaderGroup[] = [];
+  const diagnostics: Diagnostic[] = [];
+  let unsafe = false;
 
-  for (let pairStart = startColumn; pairStart <= endColumn; pairStart += 2) {
-    const salonColumn = pairStart;
-    const deliColumn = pairStart + 1;
-    const firstGroup = textValue(valueAt(snapshot, 2, salonColumn));
-    const secondGroup = textValue(valueAt(snapshot, 2, deliColumn));
-    const groupRaw = firstGroup ?? secondGroup ?? '';
-    const salonHeaderRaw = textValue(valueAt(snapshot, 3, salonColumn));
-    const deliHeaderRaw = textValue(valueAt(snapshot, 3, deliColumn));
+  for (let column = startColumn; column <= endColumn; column += 1) {
+    const current = canonicalValue(valueAt(snapshot, headerRow, column));
+    const next = column < endColumn ? canonicalValue(valueAt(snapshot, headerRow, column + 1)) : '';
 
-    if (groupRaw.length === 0) {
-      diagnostics.push({
-        code: 'DATA_GROUP_HEADER_MISSING' satisfies PricingMatrixDiagnosticCode,
-        message: 'Falta el encabezado de grupo para un par de columnas de precio.',
-        details: { tier, salonColumn, deliColumn },
+    if (current === 'salon' && next === 'deli') {
+      const salonColumn = column;
+      const deliColumn = column + 1;
+      const firstGroup = textValue(valueAt(snapshot, groupRow, salonColumn));
+      const secondGroup = textValue(valueAt(snapshot, groupRow, deliColumn));
+      const groupRaw = firstGroup ?? secondGroup ?? '';
+      const salonHeaderRaw = textValue(valueAt(snapshot, headerRow, salonColumn));
+      const deliHeaderRaw = textValue(valueAt(snapshot, headerRow, deliColumn));
+
+      if (groupRaw.length === 0) {
+        unsafe = true;
+        diagnostics.push({
+          code: 'DATA_GROUP_HEADER_MISSING' satisfies PricingMatrixDiagnosticCode,
+          message: 'Se detectó un par SALÓN/DELI sin encabezado de grupo en la fila superior.',
+          details: { tier, salonColumn, deliColumn, groupRow },
+        });
+      }
+
+      if (
+        firstGroup !== null &&
+        secondGroup !== null &&
+        normalizeHeaderLiteral(firstGroup) !== normalizeHeaderLiteral(secondGroup)
+      ) {
+        unsafe = true;
+        diagnostics.push({
+          code: 'DATA_GROUP_PAIR_HEADER_CONFLICT' satisfies PricingMatrixDiagnosticCode,
+          message: 'Las dos columnas del mismo par SALÓN/DELI declaran grupos diferentes.',
+          details: { tier, salonColumn, deliColumn, firstGroup, secondGroup },
+        });
+      }
+
+      groups.push({
+        tier,
+        groupRaw,
+        salonColumn,
+        deliColumn,
+        salonHeaderRaw,
+        deliHeaderRaw,
       });
+      column += 1;
+      continue;
     }
 
-    if (
-      firstGroup !== null &&
-      secondGroup !== null &&
-      normalizeHeaderLiteral(firstGroup) !== normalizeHeaderLiteral(secondGroup)
-    ) {
-      diagnostics.push({
-        code: 'DATA_GROUP_PAIR_HEADER_CONFLICT' satisfies PricingMatrixDiagnosticCode,
-        message: 'Las dos columnas del mismo par declaran grupos diferentes.',
-        details: { tier, salonColumn, deliColumn, firstGroup, secondGroup },
-      });
-    }
-
-    if (!channelMatches(salonHeaderRaw, 'SALON')) {
+    if (current === 'salon' || current === 'deli') {
+      unsafe = true;
       diagnostics.push({
         code: 'DATA_CHANNEL_HEADER_UNEXPECTED' satisfies PricingMatrixDiagnosticCode,
-        message: 'El encabezado de canal no coincide con SALÓN en la posición esperada.',
-        details: { tier, column: salonColumn, raw: salonHeaderRaw ?? '' },
+        message: 'Se encontró un encabezado SALÓN/DELI que no forma un par contiguo SALÓN seguido por DELI.',
+        details: { tier, column, raw: textValue(valueAt(snapshot, headerRow, column)) ?? '' },
       });
     }
-
-    if (!channelMatches(deliHeaderRaw, 'DELI')) {
-      diagnostics.push({
-        code: 'DATA_CHANNEL_HEADER_UNEXPECTED' satisfies PricingMatrixDiagnosticCode,
-        message: 'El encabezado de canal no coincide con DELI en la posición esperada.',
-        details: { tier, column: deliColumn, raw: deliHeaderRaw ?? '' },
-      });
-    }
-
-    groups.push({
-      tier,
-      groupRaw,
-      salonColumn,
-      deliColumn,
-      salonHeaderRaw,
-      deliHeaderRaw,
-    });
   }
 
-  return groups;
+  return { groups, diagnostics, unsafe };
 }
 
 function addAsymmetryDiagnostic(
@@ -239,6 +461,10 @@ function addAsymmetryDiagnostic(
   eminentGroups: readonly PricingMatrixHeaderGroup[],
   diagnostics: Diagnostic[],
 ): void {
+  if (eminentGroups.length === 0) {
+    return;
+  }
+
   const normalKeys = new Set(
     normalGroups.filter((group) => group.groupRaw.length > 0).map((group) => normalizeHeaderLiteral(group.groupRaw)),
   );
@@ -255,26 +481,252 @@ function addAsymmetryDiagnostic(
   if (normalOnly.length > 0 || eminentOnly.length > 0) {
     diagnostics.push({
       code: 'DATA_TIER_GROUP_ASYMMETRY' satisfies PricingMatrixDiagnosticCode,
-      message: 'Los bloques NORMAL y ÉMINENT no tienen encabezados de grupo simétricos.',
+      message: 'Los bloques NORMAL y ÉMINENT no tienen encabezados de grupo simétricos; no se aplica mapeo automático.',
       details: { normalOnly, eminentOnly },
     });
   }
 }
 
-function hasPriceValue(snapshot: SourceSnapshot, row: number): boolean {
-  for (let column = NORMAL_START; column <= NORMAL_END; column += 1) {
-    if (textValue(valueAt(snapshot, row, column)) !== null) {
-      return true;
+function metadataRows(
+  snapshot: SourceSnapshot,
+  groupRow: number | null,
+  bounds: SourceBounds,
+): readonly PricingMatrixMetadataRow[] {
+  if (groupRow === null) {
+    return [];
+  }
+
+  return snapshot.rows
+    .filter((row) => row.row < groupRow)
+    .map((row) => ({ row: row.row, cells: headerCellsForRow(snapshot, row.row, bounds) }));
+}
+
+function buildHeaderMetadata(
+  snapshot: SourceSnapshot,
+  bounds: SourceBounds,
+  headerRow: number | null,
+  groupRow: number | null,
+  filterColumn: number | null,
+  normalIdentity: PricingMatrixIdentityColumns | null,
+  eminentIdentity: PricingMatrixIdentityColumns | null,
+  normalGroups: readonly PricingMatrixHeaderGroup[],
+  eminentGroups: readonly PricingMatrixHeaderGroup[],
+): PricingMatrixHeaderMetadata {
+  return {
+    headerRow,
+    groupRow,
+    dataStartRow: headerRow === null ? null : headerRow + 1,
+    filterColumn,
+    normalIdentity,
+    eminentIdentity,
+    metadataRows: metadataRows(snapshot, groupRow, bounds),
+    row1: headerCellsForRow(snapshot, 1, bounds),
+    normalGroups,
+    eminentGroups,
+  };
+}
+
+function buildSheetMetadata(
+  snapshot: SourceSnapshot,
+  bounds: SourceBounds,
+  headers: PricingMatrixHeaderMetadata,
+  diagnostics: readonly Diagnostic[],
+  options: PricingMatrixAdapterOptions,
+): PricingMatrixSheetMetadata {
+  const sheetInfo = options.sheetInfo;
+  const dimensions: PricingMatrixDimensions = {
+    range: sheetInfo?.range ?? bounds.range,
+    rowCount: sheetInfo?.rowCount ?? bounds.rowCount,
+    columnCount: sheetInfo?.columnCount ?? bounds.columnCount,
+    minRow: bounds.minRow,
+    maxRow: bounds.maxRow,
+    minColumn: bounds.minColumn,
+    maxColumn: bounds.maxColumn,
+  };
+
+  return {
+    name: sheetInfo?.name ?? snapshot.meta.sheet ?? 'CSV',
+    index: sheetInfo?.index ?? null,
+    visibility: sheetInfo?.visibility ?? 'unknown',
+    dimensions,
+    headers,
+    warnings: diagnostics.filter((diagnostic) => diagnostic.code !== 'unsupported-sheet-schema'),
+  };
+}
+
+export function detectPricingMatrixSchema(
+  snapshot: SourceSnapshot,
+  options: PricingMatrixAdapterOptions = {},
+): PricingMatrixSchemaDetection {
+  const diagnostics: Diagnostic[] = [];
+  const bounds = sourceBounds(snapshot);
+  const candidates = findHeaderCandidates(snapshot, bounds);
+  const best = candidates[0];
+  let supported = true;
+
+  if (best === undefined || best.channelPairCount === 0) {
+    supported = false;
+    const headers = buildHeaderMetadata(snapshot, bounds, null, null, null, null, null, [], []);
+    const unsupported: Diagnostic = {
+      code: 'unsupported-sheet-schema' satisfies PricingMatrixDiagnosticCode,
+      message: 'La hoja seleccionada no contiene una matriz de precios reconocible por encabezados Código/Nombre y pares SALÓN/DELI.',
+      details: {
+        detectedIdentityRows: candidates.map((candidate) => candidate.row),
+        detectedIdentityCounts: candidates.map((candidate) => candidate.identities.length),
+      },
+    };
+    diagnostics.push(unsupported);
+    return {
+      supported,
+      sheet: buildSheetMetadata(snapshot, bounds, headers, diagnostics, options),
+      diagnostics,
+    };
+  }
+
+  const tied = candidates.filter((candidate) => candidate.score === best.score);
+  if (tied.length > 1) {
+    supported = false;
+    diagnostics.push({
+      code: 'DATA_HEADER_ROW_AMBIGUOUS' satisfies PricingMatrixDiagnosticCode,
+      message: 'Más de una fila presenta evidencia equivalente de cabecera de matriz; no se selecciona una silenciosamente.',
+      details: { rows: tied.map((candidate) => candidate.row), score: best.score },
+    });
+  }
+
+  const headerRow = best.row;
+  const groupRow = headerRow - 1;
+  const identities = [...best.identities].sort((left, right) => left.codeColumn - right.codeColumn);
+  const normalIdentity = identities[0] ?? null;
+  let eminentIdentity: PricingMatrixIdentityColumns | null = null;
+
+  if (identities.length > 2) {
+    supported = false;
+    diagnostics.push({
+      code: 'unsupported-sheet-schema' satisfies PricingMatrixDiagnosticCode,
+      message: 'La hoja contiene más de dos bloques Código/Nombre y su semántica no puede determinarse de forma segura.',
+      details: {
+        headerRow,
+        codeColumns: identities.map((identity) => identity.codeColumn),
+        nameColumns: identities.map((identity) => identity.nameColumn),
+      },
+    });
+  }
+
+  if (identities.length >= 2) {
+    const second = identities[1]!;
+    if (hasEminentLabel(snapshot, groupRow, second, bounds)) {
+      eminentIdentity = second;
+    } else {
+      supported = false;
+      diagnostics.push({
+        code: 'DATA_SECOND_IDENTITY_UNCLASSIFIED' satisfies PricingMatrixDiagnosticCode,
+        message: 'Se detectó un segundo bloque Código/Nombre sin una etiqueta ÉMINENT inequívoca en la fila superior.',
+        details: { headerRow, groupRow, codeColumn: second.codeColumn, nameColumn: second.nameColumn },
+      });
     }
   }
 
-  for (let column = EMINENT_START; column <= EMINENT_END; column += 1) {
-    if (textValue(valueAt(snapshot, row, column)) !== null) {
-      return true;
-    }
+  const filterColumn =
+    normalIdentity === null ? null : findFilterColumn(snapshot, headerRow, normalIdentity, bounds);
+
+  let normalGroups: readonly PricingMatrixHeaderGroup[] = [];
+  let eminentGroups: readonly PricingMatrixHeaderGroup[] = [];
+
+  if (normalIdentity !== null) {
+    const normalEnd = eminentIdentity?.codeColumn !== undefined
+      ? eminentIdentity.codeColumn - 1
+      : bounds.maxColumnValue;
+    const detectedNormal = detectGroups(
+      snapshot,
+      'NORMAL',
+      headerRow,
+      groupRow,
+      normalIdentity.nameColumn + 1,
+      normalEnd,
+    );
+    normalGroups = detectedNormal.groups;
+    diagnostics.push(...detectedNormal.diagnostics);
+    supported = supported && !detectedNormal.unsafe && normalGroups.length > 0;
   }
 
-  return false;
+  if (eminentIdentity !== null) {
+    const detectedEminent = detectGroups(
+      snapshot,
+      'EMINENT',
+      headerRow,
+      groupRow,
+      eminentIdentity.nameColumn + 1,
+      bounds.maxColumnValue,
+    );
+    eminentGroups = detectedEminent.groups;
+    diagnostics.push(...detectedEminent.diagnostics);
+    supported = supported && !detectedEminent.unsafe && eminentGroups.length > 0;
+  } else if (identities.length === 1) {
+    diagnostics.push({
+      code: 'DATA_EMINENT_BLOCK_ABSENT' satisfies PricingMatrixDiagnosticCode,
+      message: 'La hoja no contiene un segundo bloque ÉMINENT; se conserva como ausencia y no se deriva ningún valor.',
+      details: { headerRow },
+    });
+  }
+
+  addAsymmetryDiagnostic(normalGroups, eminentGroups, diagnostics);
+
+  const metadata = metadataRows(snapshot, groupRow, bounds);
+  const uninterpreted = metadata.flatMap((row) =>
+    row.cells
+      .filter((cell) => textValue(cell.raw) !== null)
+      .map((cell) => `${cell.columnLabel}${cell.row}=${String(cell.raw)}`),
+  );
+  if (uninterpreted.length > 0) {
+    diagnostics.push({
+      code: 'DATA_HEADER_METADATA_UNINTERPRETED' satisfies PricingMatrixDiagnosticCode,
+      message: 'Las filas anteriores a los encabezados contienen metadata cuya semántica no está demostrada y se preserva sin aplicarla.',
+      details: { cells: uninterpreted },
+    });
+  }
+
+  if (!supported && !diagnostics.some((diagnostic) => diagnostic.code === 'unsupported-sheet-schema')) {
+    diagnostics.push({
+      code: 'unsupported-sheet-schema' satisfies PricingMatrixDiagnosticCode,
+      message: 'La hoja seleccionada contiene evidencia parcial de matriz, pero el esquema no es suficientemente seguro para generar precios.',
+      details: {
+        headerRow,
+        identityCount: identities.length,
+        normalGroupCount: normalGroups.length,
+        eminentGroupCount: eminentGroups.length,
+      },
+    });
+  }
+
+  const headers = buildHeaderMetadata(
+    snapshot,
+    bounds,
+    headerRow,
+    groupRow,
+    filterColumn,
+    normalIdentity,
+    eminentIdentity,
+    normalGroups,
+    eminentGroups,
+  );
+
+  return {
+    supported,
+    sheet: buildSheetMetadata(snapshot, bounds, headers, diagnostics, options),
+    diagnostics,
+  };
+}
+
+function hasPriceValue(
+  snapshot: SourceSnapshot,
+  row: number,
+  groups: readonly PricingMatrixHeaderGroup[],
+): boolean {
+  return groups.some(
+    (group) =>
+      textValue(valueAt(snapshot, row, group.salonColumn)) !== null ||
+      textValue(valueAt(snapshot, row, group.deliColumn)) !== null,
+  );
 }
 
 function createSlotsForGroup(
@@ -288,7 +740,7 @@ function createSlotsForGroup(
   const slots: PriceSlot[] = [];
 
   for (const column of [group.salonColumn, group.deliColumn]) {
-    const channel = expectedChannel(column, group.salonColumn);
+    const channel: Channel = column === group.salonColumn ? 'SALON' : 'DELI';
     const raw = valueAt(snapshot, row, column);
     const provenance = provenanceFor(snapshot, row, column, raw);
     const field = priceFieldFromRaw(raw, provenance);
@@ -325,64 +777,44 @@ function createSlotsForGroup(
   return slots;
 }
 
-export function adaptObservedPricingMatrix(snapshot: SourceSnapshot): PricingMatrixAdapterResult {
-  const diagnostics: Diagnostic[] = [];
-  const rowCount = snapshot.rows.length;
-  const columnCount = maximumColumn(snapshot);
+export function adaptPricingMatrix(
+  snapshot: SourceSnapshot,
+  options: PricingMatrixAdapterOptions = {},
+): PricingMatrixAdapterResult {
+  const detection = detectPricingMatrixSchema(snapshot, options);
+  const headers = detection.sheet.headers;
 
-  if (rowCount !== EXPECTED_ROWS) {
-    diagnostics.push({
-      code: 'DATA_ROW_COUNT_UNEXPECTED' satisfies PricingMatrixDiagnosticCode,
-      message: 'La cantidad de filas difiere de la matriz observada en discovery.',
-      details: { expected: EXPECTED_ROWS, actual: rowCount },
-    });
+  if (!detection.supported || headers.headerRow === null || headers.normalIdentity === null) {
+    return {
+      supported: false,
+      rows: [],
+      slots: [],
+      headers,
+      sheet: detection.sheet,
+      diagnostics: detection.diagnostics,
+    };
   }
 
-  if (columnCount !== EXPECTED_COLUMNS) {
-    diagnostics.push({
-      code: 'DATA_COLUMN_COUNT_UNEXPECTED' satisfies PricingMatrixDiagnosticCode,
-      message: 'La cantidad de columnas difiere de la matriz observada en discovery.',
-      details: { expected: EXPECTED_COLUMNS, actual: columnCount },
-    });
-  }
-
-  const row1 = Array.from({ length: EXPECTED_COLUMNS }, (_, index) => headerCell(snapshot, 1, index + 1));
-  const uninterpreted = row1.filter((cell) => cell.column >= 4 && textValue(cell.raw) !== null);
-  if (uninterpreted.length > 0) {
-    diagnostics.push({
-      code: 'DATA_HEADER_METADATA_UNINTERPRETED' satisfies PricingMatrixDiagnosticCode,
-      message: 'La primera fila contiene metadata cuya semántica no está demostrada y se preserva sin aplicarla.',
-      details: {
-        columns: uninterpreted.map((cell) => cell.column),
-        values: uninterpreted.map((cell) => cell.raw),
-      },
-    });
-  }
-
-  const unknownColumn48 = headerCell(snapshot, 1, 48);
-  diagnostics.push({
-    code: 'DATA_UNKNOWN_COLUMN_48' satisfies PricingMatrixDiagnosticCode,
-    message: 'La columna 48 tiene un rol no demostrado y no participa del pricing.',
-    details: { column: 48, raw: unknownColumn48.raw },
-  });
-
-  const normalGroups = buildHeaderGroups(snapshot, 'NORMAL', NORMAL_START, NORMAL_END, diagnostics);
-  const eminentGroups = buildHeaderGroups(snapshot, 'EMINENT', EMINENT_START, EMINENT_END, diagnostics);
-  addAsymmetryDiagnostic(normalGroups, eminentGroups, diagnostics);
-
+  const diagnostics: Diagnostic[] = [...detection.diagnostics];
   const adaptedRows: PricingMatrixAdaptedRow[] = [];
   const allSlots: PriceSlot[] = [];
+  const allGroups = [...headers.normalGroups, ...headers.eminentGroups];
+  const normalIdentity = headers.normalIdentity;
+  const eminentIdentity = headers.eminentIdentity;
+  const filterColumn = headers.filterColumn;
 
-  for (const sourceRow of snapshot.rows.filter((row) => row.row >= 4)) {
+  for (const sourceRow of snapshot.rows.filter((row) => row.row > headers.headerRow!)) {
     const rowDiagnostics: Diagnostic[] = [];
-    const normalCode = textValue(cellAt(sourceRow, 2)?.value ?? null);
-    const normalName = textValue(cellAt(sourceRow, 3)?.value ?? null);
-    const eminentCode = textValue(cellAt(sourceRow, 49)?.value ?? null);
-    const eminentName = textValue(cellAt(sourceRow, 50)?.value ?? null);
+    const normalCode = textValue(cellAt(sourceRow, normalIdentity.codeColumn)?.value ?? null);
+    const normalName = textValue(cellAt(sourceRow, normalIdentity.nameColumn)?.value ?? null);
+    const eminentCode =
+      eminentIdentity === null ? null : textValue(cellAt(sourceRow, eminentIdentity.codeColumn)?.value ?? null);
+    const eminentName =
+      eminentIdentity === null ? null : textValue(cellAt(sourceRow, eminentIdentity.nameColumn)?.value ?? null);
     const codeRaw = normalCode ?? eminentCode;
     const nameRaw = normalName ?? eminentName;
     const recordId = `${snapshot.meta.id}:r${sourceRow.row}`;
-    const filterRaw = cellAt(sourceRow, 1)?.value ?? null;
+    const filterRaw = filterColumn === null ? null : cellAt(sourceRow, filterColumn)?.value ?? null;
 
     if (
       normalCode !== null &&
@@ -420,7 +852,7 @@ export function adaptObservedPricingMatrix(snapshot: SourceSnapshot): PricingMat
           diagnostics: rowDiagnostics,
         });
       } else {
-        if (hasPriceValue(snapshot, sourceRow.row)) {
+        if (hasPriceValue(snapshot, sourceRow.row, allGroups)) {
           rowDiagnostics.push({
             code: 'DATA_UNCLASSIFIED_ROW_VALUES' satisfies PricingMatrixDiagnosticCode,
             message: 'La fila tiene valores de precio pero no tiene Código ni Nombre clasificable.',
@@ -451,14 +883,9 @@ export function adaptObservedPricingMatrix(snapshot: SourceSnapshot): PricingMat
     }
 
     const product: ProductRef = { codeRaw, nameRaw: nameRaw ?? '' };
-    const slots = [
-      ...normalGroups.flatMap((group) =>
-        createSlotsForGroup(snapshot, sourceRow.row, recordId, product, group, rowDiagnostics),
-      ),
-      ...eminentGroups.flatMap((group) =>
-        createSlotsForGroup(snapshot, sourceRow.row, recordId, product, group, rowDiagnostics),
-      ),
-    ];
+    const slots = allGroups.flatMap((group) =>
+      createSlotsForGroup(snapshot, sourceRow.row, recordId, product, group, rowDiagnostics),
+    );
 
     allSlots.push(...slots);
     adaptedRows.push({
@@ -474,14 +901,16 @@ export function adaptObservedPricingMatrix(snapshot: SourceSnapshot): PricingMat
   }
 
   return {
+    supported: true,
     rows: adaptedRows,
     slots: allSlots,
-    headers: {
-      row1,
-      normalGroups,
-      eminentGroups,
-      unknownColumn48,
+    headers,
+    sheet: {
+      ...detection.sheet,
+      warnings: diagnostics.filter((diagnostic) => diagnostic.code !== 'unsupported-sheet-schema'),
     },
     diagnostics,
   };
 }
+
+export const adaptObservedPricingMatrix = adaptPricingMatrix;
