@@ -22,6 +22,7 @@ import type { WorkbenchEventMap } from '../features/ui/events';
 import type { FontView, WorkbookSheetView, WorkbenchFileView } from '../features/ui/models';
 import type { PriceWorkbench } from '../features/ui/workbench';
 import type { PreciosAppCommandName } from '../features/ui/control-api/types';
+import { normalizeCanonicalText } from '../utils/normalize/text';
 import { adaptCsvPricingCompatibility } from './csv-pricing-compat';
 import { artworkVariantKey, derivePricingTargets, resolveRuntimeArtwork, type RuntimePricingTargetDraft } from './generic-artwork';
 import {
@@ -103,6 +104,14 @@ function outputName(fileName: string, draft: RuntimePricingTargetDraft, duplicat
   return `${stem} - ${group}${scope}.svg`;
 }
 
+function outputIdentityKey(draft: RuntimePricingTargetDraft): string {
+  const scopes = [...new Set(draft.scopeLabels
+    .map((label) => normalizeCanonicalText(label))
+    .filter((label) => label.length > 0))]
+    .sort();
+  return [draft.pricingGroupCanonical, ...scopes].join('\u0000');
+}
+
 function sourceOutput(file: RuntimeFile, issue?: PreflightIssue): RuntimeOutput {
   return {
     id: file.id,
@@ -123,6 +132,9 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
 
   let disposed = false;
   let operationRevision = 0;
+  let contentRevision = 0;
+  let preflightSequence = 0;
+  let exportSequence = 0;
   let activeUpload: { readonly command: UploadCommand; readonly revision: number } | null = null;
   let source: RuntimeSource | null = null;
   let workbookSession: LocalWorkbookOpenResult | null = null;
@@ -205,6 +217,7 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
 
   const beginUpload = (command: UploadCommand): number => {
     interruptActiveUpload();
+    contentRevision += 1;
     const revision = ++operationRevision;
     activeUpload = { command, revision };
     return revision;
@@ -277,8 +290,8 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
       groupCounts.set(draft.pricingGroupCanonical, (groupCounts.get(draft.pricingGroupCanonical) ?? 0) + 1);
     }
     const multiple = drafts.length > 1;
-    file.outputs = drafts.map((draft, index) => ({
-      id: multiple ? `${file.id}::target:${index + 1}` : file.id,
+    file.outputs = drafts.map((draft) => ({
+      id: multiple ? `${file.id}::target:${encodeURIComponent(outputIdentityKey(draft))}` : file.id,
       outputName: multiple
         ? outputName(file.fileName, draft, (groupCounts.get(draft.pricingGroupCanonical) ?? 0) > 1)
         : file.fileName,
@@ -525,6 +538,7 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
     const session = workbookSession;
     const file = workbookFile;
     const revision = ++operationRevision;
+    contentRevision += 1;
     activeUpload = null;
     if (session === null || session.format !== 'workbook' || file === null) {
       throw new Error('No hay un workbook abierto para seleccionar una hoja.');
@@ -906,6 +920,9 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
   };
 
   const onPreflight = async (): Promise<void> => {
+    const revision = contentRevision;
+    const sequence = ++preflightSequence;
+    exportSequence += 1;
     exportResult = null;
     for (const file of files.values()) ensurePreflightOutputs(file);
     refreshOutputOverrides();
@@ -917,8 +934,14 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
     publish();
     try {
       for (const { file, output } of targets) {
-        const generation = await runGeneration(file, output);
-        if (disposed) return;
+        let generation: SvgEngineGenerationResult | undefined;
+        try {
+          generation = await runGeneration(file, output);
+        } catch (error) {
+          if (disposed || revision !== contentRevision || sequence !== preflightSequence) return;
+          throw error;
+        }
+        if (disposed || revision !== contentRevision || sequence !== preflightSequence) return;
         if (generation === undefined) delete output.generation;
         else output.generation = generation;
         const preflight = buildSvgFilePreflight({
@@ -937,7 +960,7 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
         publish();
       }
     } finally {
-      if (!disposed && total > 0) {
+      if (!disposed && revision === contentRevision && sequence === preflightSequence && total > 0) {
         model.progress = { value: completed, max: total, label: `Preflight ${completed} de ${total} completado` };
         publish();
       }
@@ -961,6 +984,7 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
   const onMatchApply = (detail: WorkbenchEventMap['pw:match-apply']): void => {
     const target = fileForAnyId(detail.fileId);
     if (target === undefined) return;
+    contentRevision += 1;
     const apply = (file: RuntimeFile): void => {
       if (!file.match.candidates.some((candidate) => candidate.id === detail.candidateId)) return;
       matchStore.record(file.id, detail.candidateId);
@@ -1014,15 +1038,23 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
   };
 
   const onExport = async (detail: WorkbenchEventMap['pw:export-request']): Promise<void> => {
+    const revision = contentRevision;
+    const sequence = ++exportSequence;
     const selected = detail.fileIds.flatMap((id) => {
       const found = outputForId(id);
       return found === undefined ? [] : [found];
     });
-    const bundle = await buildExportBundle(selected.map(({ file, output }) => bundleInput(file, output)), {
-      timestamp: new Date().toISOString(),
-      provenance: { source: source?.fileName ?? null },
-    });
-    if (disposed) return;
+    let bundle: ExportBundleResult;
+    try {
+      bundle = await buildExportBundle(selected.map(({ file, output }) => bundleInput(file, output)), {
+        timestamp: new Date().toISOString(),
+        provenance: { source: source?.fileName ?? null },
+      });
+    } catch (error) {
+      if (disposed || revision !== contentRevision || sequence !== exportSequence) return;
+      throw error;
+    }
+    if (disposed || revision !== contentRevision || sequence !== exportSequence) return;
     const exportedCount = bundle.files.filter((file) => file.status === 'exported').length;
     if (detail.kind !== 'manifest' && exportedCount === 0) {
       exportResult = {
@@ -1059,15 +1091,20 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
   const onIssue = (detail: WorkbenchEventMap['pw:issue-action']): void => {
     const file = fileForAnyId(detail.fileId);
     if (file === undefined) return;
+    contentRevision += 1;
     const target = outputForId(detail.fileId)?.output;
     if (target !== undefined) delete target.preflight;
     syncSingleOutputState(file);
     delete model.preflight;
+    exportResult = null;
     publish();
   };
 
   const reset = (): void => {
     operationRevision += 1;
+    contentRevision += 1;
+    preflightSequence += 1;
+    exportSequence += 1;
     activeUpload = null;
     source = null;
     workbookSession = null;
@@ -1161,6 +1198,9 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
       if (disposed) return;
       disposed = true;
       operationRevision += 1;
+      contentRevision += 1;
+      preflightSequence += 1;
+      exportSequence += 1;
       activeUpload = null;
       workbookSession = null;
       workbookFile = null;
