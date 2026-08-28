@@ -179,10 +179,14 @@ async function main() {
   console.log(`Suite QA detectada: ${testFiles.length} archivo(s).`);
 
   const initialLock = await readLockInfo();
-  const installMethod = initialLock.valid ? 'ci' : 'install';
-  const installArgs = initialLock.valid
+  if (initialLock.exists && !initialLock.valid) {
+    throw new Error('Existe package-lock.json pero no es válido; no se reemplaza automáticamente.');
+  }
+
+  const installMethod = initialLock.exists ? 'ci' : 'install';
+  const installArgs = initialLock.exists
     ? ['ci', '--no-audit', '--no-fund']
-    : ['install', '--no-audit', '--no-fund'];
+    : ['install', '--package-lock', '--no-audit', '--no-fund'];
 
   console.log(`Método de instalación: ${installMethod}`);
   await runCommand('install', npmCommand, installArgs);
