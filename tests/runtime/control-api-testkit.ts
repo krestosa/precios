@@ -180,7 +180,7 @@ export function findRecordByStringField(
     }
     return null;
   }
-  if (!isRecord(root)) return false;
+  if (!isRecord(root)) return null;
   if (root[key] === expected) return root;
   for (const entry of Object.values(root)) {
     const found = findRecordByStringField(entry, key, expected);
