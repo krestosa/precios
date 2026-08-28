@@ -106,10 +106,19 @@ jobs:
           set -o pipefail
           node scripts/portable-pipeline.mjs --smoke-url "${DEPLOYED_URL}" 2>&1 | tee deployment-smoke.log
 
+      - name: Run W6 Pages HTTP smoke
+        env:
+          PRECIOS_PAGES_URL: ${{ needs.deploy.outputs.page_url }}
+        run: |
+          set -o pipefail
+          node tests/pages/pages-http-smoke.mjs 2>&1 | tee pages-http-smoke.log
+
       - name: Upload deployment smoke artifact
         if: always()
         uses: actions/upload-artifact@v7.0.1
         with:
           name: deployment-smoke
-          path: deployment-smoke.log
+          path: |
+            deployment-smoke.log
+            pages-http-smoke.log
           if-no-files-found: error
