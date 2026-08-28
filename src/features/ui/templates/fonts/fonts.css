@@ -1,0 +1,8 @@
+:host { display: block; }
+.stack { display: grid; gap: var(--pw-component-fonts-gap); }
+.font-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--pw-semantic-space-sm); }
+.font-item { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--pw-component-fonts-gap); padding: var(--pw-component-fonts-padding); border: var(--pw-semantic-size-border) solid var(--pw-semantic-color-scheme-outline-variant); border-radius: var(--pw-component-fonts-shape); }
+.font-text { min-width: 0; }
+.font-text strong { display: block; overflow-wrap: anywhere; }
+.font-text span { color: var(--pw-semantic-color-scheme-on-surface-variant); font: var(--pw-component-fonts-type); letter-spacing: var(--pw-component-fonts-type-letter-spacing); }
+[hidden] { display: none !important; }

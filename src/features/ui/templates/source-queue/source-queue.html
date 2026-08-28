@@ -1,0 +1,13 @@
+<pw-panel class="source-panel" heading="1. Fuente de precios" description="Carga local; la UI no parsea el archivo.">
+  <div class="stack">
+    <pw-file-dropzone class="source-dropzone" label="Cargar fuente local"></pw-file-dropzone>
+    <div class="source-file" hidden><strong></strong><div class="message"></div></div>
+  </div>
+</pw-panel>
+<pw-panel heading="2. Archivos SVG" description="Admite múltiples archivos y conserva errores de forma aislada.">
+  <div class="stack">
+    <pw-file-dropzone class="svg-dropzone" accept=".svg,image/svg+xml" multiple label="Cargar SVG" helper="Seleccioná uno o varios archivos SVG"></pw-file-dropzone>
+    <pw-empty-state class="queue-empty" heading="Cola vacía" message="Los SVG aparecerán acá cuando el adaptador entregue sus view-models."></pw-empty-state>
+    <pw-data-list class="queue" hidden></pw-data-list>
+  </div>
+</pw-panel>

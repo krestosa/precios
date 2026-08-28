@@ -1,0 +1,9 @@
+<div class="backdrop" aria-hidden="true"></div>
+<aside role="dialog" aria-modal="false" aria-hidden="true" tabindex="-1">
+  <header>
+    <div class="header-content"><slot name="header"><h2></h2></slot></div>
+    <button type="button" class="close" aria-label="Cerrar detalles">Cerrar</button>
+  </header>
+  <div class="content"><slot></slot></div>
+  <footer><slot name="footer"></slot></footer>
+</aside>

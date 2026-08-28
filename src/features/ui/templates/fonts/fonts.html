@@ -1,0 +1,8 @@
+<pw-panel heading="Fuentes requeridas" description="La UI sólo entrega archivos al resolver tipográfico; no interpreta metadata.">
+  <div class="stack">
+    <pw-empty-state class="empty" heading="Sin requisitos reportados" message="El motor todavía no informó fuentes requeridas."></pw-empty-state>
+    <ul class="font-list" aria-label="Fuentes requeridas" hidden></ul>
+    <template class="font-template"><li class="font-item"><div class="font-text"><strong></strong><span></span></div><pw-status-chip></pw-status-chip></li></template>
+    <pw-file-dropzone class="font-dropzone" accept=".ttf,.otf,.woff,.woff2" multiple label="Agregar fuentes locales" helper="TTF, OTF, WOFF o WOFF2"></pw-file-dropzone>
+  </div>
+</pw-panel>

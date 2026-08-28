@@ -1,0 +1,27 @@
+:host { display: inline-flex; }
+button {
+  min-height: var(--pw-component-ui-button-height);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--pw-component-ui-button-gap);
+  border: var(--pw-semantic-size-border) solid var(--pw-semantic-color-scheme-outline);
+  border-radius: var(--pw-component-ui-button-shape);
+  padding: var(--pw-component-ui-button-pad-block) var(--pw-component-ui-button-pad-inline);
+  font: var(--pw-component-ui-button-type);
+  letter-spacing: var(--pw-component-ui-button-type-letter-spacing);
+  color: var(--pw-semantic-color-scheme-on-surface);
+  background: var(--pw-semantic-color-scheme-surface);
+  cursor: pointer;
+  transition: background-color var(--pw-component-ui-button-motion) var(--pw-semantic-motion-easing-standard), color var(--pw-component-ui-button-motion) var(--pw-semantic-motion-easing-standard), border-color var(--pw-component-ui-button-motion) var(--pw-semantic-motion-easing-standard);
+}
+button:hover:not(:disabled) { background: var(--pw-semantic-color-scheme-surface-variant); }
+button:focus-visible { outline: var(--pw-semantic-focus-width) solid var(--pw-semantic-focus-color); outline-offset: var(--pw-semantic-focus-outward-offset); }
+:host([variant='primary']) button { color: var(--pw-semantic-color-scheme-on-primary); border-color: var(--pw-semantic-color-scheme-primary); background: var(--pw-semantic-color-scheme-primary); }
+:host([variant='primary']) button:hover:not(:disabled) { background: var(--pw-semantic-color-scheme-primary-container); color: var(--pw-semantic-color-scheme-on-surface); }
+:host([variant='ghost']) button { border-color: transparent; background: transparent; }
+:host([variant='danger']) button { color: var(--pw-semantic-color-scheme-on-error); border-color: var(--pw-semantic-color-scheme-error); background: var(--pw-semantic-color-scheme-error); }
+button:disabled { cursor: not-allowed; opacity: var(--pw-semantic-state-disabled-content); }
+.busy { display: none; }
+:host([busy]) .busy { display: inline; }
+@media (prefers-reduced-motion: reduce) { button { transition: none; } }

@@ -1,0 +1,9 @@
+<pw-panel heading="Preflight" description="Resumen agregado y estado por archivo.">
+  <div class="stack">
+    <pw-empty-state class="empty" heading="Preflight pendiente" message="Ejecutalo cuando matching, precios y tipografías estén disponibles."></pw-empty-state>
+    <div class="summary" hidden><pw-status-chip class="ok"></pw-status-chip><pw-status-chip class="warnings"></pw-status-chip><pw-status-chip class="errors"></pw-status-chip></div>
+    <ul class="preflight-list" aria-label="Preflight por SVG" hidden></ul>
+    <template class="item-template"><li class="preflight-item"><div><strong></strong><div class="meta"></div></div><pw-status-chip></pw-status-chip></li></template>
+    <pw-button class="run" variant="primary">Ejecutar preflight</pw-button>
+  </div>
+</pw-panel>

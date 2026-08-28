@@ -1,0 +1,1 @@
+export { TraceTemplate } from './trace';
