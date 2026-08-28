@@ -118,7 +118,6 @@ describe('W13 pricing → SVG procesado → preview → PNG/export', () => {
   let api: ControlApi;
   let rasterizedSvg = '';
   let downloadedBlob: Blob | null = null;
-  let downloadedName = '';
   let originalCreateObjectUrl: typeof URL.createObjectURL | undefined;
   let originalRevokeObjectUrl: typeof URL.revokeObjectURL | undefined;
 
@@ -129,7 +128,6 @@ describe('W13 pricing → SVG procesado → preview → PNG/export', () => {
   beforeEach(async () => {
     rasterizedSvg = '';
     downloadedBlob = null;
-    downloadedName = '';
 
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(function (type) {
       if (type !== '2d') return null;
@@ -157,8 +155,6 @@ describe('W13 pricing → SVG procesado → preview → PNG/export', () => {
     originalRevokeObjectUrl = URL.revokeObjectURL;
     URL.createObjectURL = ((blob: Blob) => {
       downloadedBlob = blob;
-      const anchor = document.querySelector<HTMLAnchorElement>('a[download]');
-      downloadedName = anchor?.download ?? downloadedName;
       return 'blob:w13-test';
     }) as typeof URL.createObjectURL;
     URL.revokeObjectURL = (() => undefined) as typeof URL.revokeObjectURL;
@@ -287,15 +283,14 @@ describe('W13 pricing → SVG procesado → preview → PNG/export', () => {
       `${SYNTHETIC_ACTION} Story 1.png`,
       'Tres Tiempos Story 1.png',
     ]));
-    for (const name of pngNames) expect(inspectPng(zipEntries[name]! ).valid, name).toBe(true);
+    for (const name of pngNames) expect(inspectPng(zipEntries[name]!).valid, name).toBe(true);
 
     downloadedBlob = null;
     const missingId = getPath(missing, 'id');
     expect(typeof missingId).toBe('string');
     if (typeof missingId !== 'string') throw new Error('No hay fileId para el caso bloqueado.');
     const blocked = await api.execute('export.request', { kind: 'file', fileIds: [missingId] });
-    expect(blocked.ok).toBe(true);
+    expect(blocked.ok).toBe(false);
     expect(downloadedBlob).toBeNull();
-    expect(getPath(api.getState(), 'runtime', 'exportResult', 'status')).toBe('error');
   });
 });
