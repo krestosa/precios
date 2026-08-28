@@ -66,10 +66,9 @@ Worker/branch dedicado. Puede modificar sólo:
 
 - composition root;
 - adapters de integración;
-- conflictos explícitamente autorizados;
-- migraciones estructurales necesarias para consolidar contratos sin duplicarlos.
+- conflictos explícitamente autorizados.
 
-No debe reimplementar módulos de W2/W3/W4/W5/W6.
+No debe reimplementar módulos de W2/W3/W4/W5/W6 ni mover contratos compartidos por motivos estéticos.
 
 ## 4. Dependency requests
 
@@ -85,6 +84,9 @@ La integración o el worker dueño resuelve la dependencia.
 
 ## 5. Contratos y duplicación
 
+- `src/domain/contracts/**` es la ubicación canónica y única de contratos compartidos.
+- Se mantiene esa ruta para preservar estabilidad de imports, una sola fuente de verdad y evitar churn sin beneficio funcional.
+- No existe obligación ni roadmap de migrarla a otra jerarquía.
 - Consumir contratos compartidos; no recrear tipos equivalentes en cada módulo.
 - La lógica de dominio vive en un único dueño.
 - UI no implementa parsing, matching, pricing ni SVG.
@@ -92,8 +94,6 @@ La integración o el worker dueño resuelve la dependencia.
 - Data-source no resuelve matching ni precedencia.
 - App/integración sólo coordina.
 - Workers no contienen copias privadas de la lógica que ejecutan.
-
-Mientras `main` conserve contratos baseline en `src/domain/contracts/**`, éstos deben consumirse como fuente real. La estructura objetivo `src/contracts/**` sólo puede materializarse mediante migración dedicada y sin coexistencia divergente.
 
 ## 6. Reglas de precios
 
@@ -164,6 +164,8 @@ Prohibido como arquitectura:
 - `.template.ts`;
 - `.styles.ts`;
 - Sass/SCSS;
+- `css\`...\`` como hoja CSS principal;
+- `html\`...\`` como markup estructural principal;
 - markup principal generado/construido desde TypeScript;
 - hojas CSS principales construidas desde TypeScript;
 - `innerHTML` con datos de usuario/negocio.
@@ -179,17 +181,246 @@ Permitido:
 
 Accesibilidad requerida: teclado, focus visible, semántica, ARIA sólo cuando aporte, reduced-motion y responsive.
 
-## 12. Tokens
+## 12. Tokens: fuente, forma y capas
 
-- `src/tokens/tokens.json` es la fuente canónica.
-- Separar primitive y semantic tokens.
-- Usar `$type`, `$value` y aliases.
-- `src/styles/tokens.css` es bridge 1:1.
-- Component CSS consume semantic custom properties.
-- Evitar hardcodes cuando existe token semántico aplicable.
-- No duplicar design tokens en TS, CSS y JSON como fuentes independientes.
+### Fuente única
 
-## 13. Determinismo
+- `src/tokens/tokens.json` es la única fuente de verdad.
+- `src/tokens/tokens.css` es bridge generado/validado 1:1.
+- Un schema/validator opcional puede vivir en `src/tokens/schema/**`, pero no duplica valores.
+
+### Capas
+
+- `foundation.*`: valores base.
+- `semantic.*`: roles de uso, mediante aliases a foundation.
+- `component.*`: decisiones de cada componente real, mediante aliases a semantic/foundation.
+
+No copiar un valor cuando existe un alias válido. No crear component tokens para componentes inexistentes.
+
+### Forma del JSON
+
+- Todo token tiene `$value`.
+- `$type` es explícito o heredado inequívocamente del grupo.
+- Nunca inferir tipo por el valor.
+- `$description` es opcional.
+- Grupos no tienen `$value`.
+- Ningún objeto puede ser token y grupo con hijos simultáneamente.
+- Alias: `{path.to.token}`.
+- Toda referencia debe resolver.
+- Referencias circulares están prohibidas.
+- Extensiones sólo si no existe un tipo estándar aplicable y nunca para evitar uno disponible.
+
+Tipos a usar cuando correspondan:
+
+- `color`;
+- `dimension`;
+- `fontFamily`;
+- `fontWeight`;
+- `duration`;
+- `cubicBezier`;
+- `number`;
+- `strokeStyle`;
+- `border`;
+- `transition`;
+- `shadow`;
+- `gradient`;
+- `typography`.
+
+Representaciones:
+
+- color: valor estructurado con `colorSpace`, `components` y `alpha` cuando corresponda; `hex` sólo auxiliar.
+- dimension: `{ "value": n, "unit": "px"|"rem" }`.
+- duration: `{ "value": n, "unit": "ms"|"s" }`.
+- cubicBezier: array de cuatro números.
+- composites: usar estructura correspondiente para `border`, `transition`, `shadow`, `gradient`, `typography`.
+
+## 13. Tokens: catálogo foundation y semantic mínimo
+
+### Color
+
+Foundation debe contener paletas tonales completas para:
+
+- accent-primary;
+- accent-secondary;
+- accent-tertiary;
+- neutral;
+- neutral-variant;
+- error.
+
+Light/dark son contextos coherentes con el mismo árbol de roles semánticos. Para cada contexto:
+
+- primary/on-primary/primary-container/on-primary-container;
+- secondary/on-secondary/secondary-container/on-secondary-container;
+- tertiary/on-tertiary/tertiary-container/on-tertiary-container;
+- error/on-error/error-container/on-error-container;
+- background/on-background;
+- surface/on-surface;
+- surface-variant/on-surface-variant;
+- surface-dim/surface-bright;
+- surface-container-lowest/low/base/high/highest;
+- outline/outline-variant;
+- inverse-surface/inverse-on-surface/inverse-primary;
+- shadow;
+- scrim;
+- surface-tint;
+- para primary/secondary/tertiary: fixed/fixed-dim/on-fixed/on-fixed-variant.
+
+### Typography
+
+Foundation:
+
+- family brand/plain;
+- weight regular/medium/bold;
+- tracking base;
+- tamaños y line-heights base necesarios.
+
+`Inter` permanece como familia UI offline-first/fallback salvo decisión posterior explícita.
+
+Semantic contiene 15 composites base:
+
+- display large/medium/small;
+- headline large/medium/small;
+- title large/medium/small;
+- body large/medium/small;
+- label large/medium/small.
+
+Cada composite incluye `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`. Cada rol puede tener variante `emphasized` 1:1 en métricas y peso tokenizado; `prominent` sólo cuando exista necesidad real. Component CSS no hardcodea tipografía cubierta por roles.
+
+### Shape
+
+- none;
+- extra-small;
+- small;
+- medium;
+- large;
+- extra-large;
+- full.
+
+Esquinas lógicas derivadas: start-start, start-end, end-start, end-end. Variantes parciales sólo para componentes reales que las necesiten. Geometrías complejas no escalares se mantienen fuera del token JSON o en metadata/extensión válida sólo cuando no exista tipo estándar.
+
+### Elevation
+
+- niveles 0..5 como composites `shadow`;
+- shadow color semántico;
+- componentes aliasan niveles, no repiten `box-shadow`.
+
+### State/focus
+
+- hover `0.08`;
+- focus `0.12`;
+- pressed `0.12`;
+- dragged `0.16`;
+- disabled-content `0.38`;
+- disabled-container `0.12`.
+
+Focus ring: width, active-width, inward offset, outward offset, shape, color y duration.
+
+### Motion clásico
+
+Duraciones foundation: 50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 700, 800, 900, 1000 ms.
+
+Curvas foundation: standard, emphasized, decelerate, accelerate y linear cuando corresponda.
+
+Las transiciones de componentes son composites `transition` que aliasan estos valores.
+
+### Motion físico
+
+Familias semantic:
+
+- fast/default/slow × spatial;
+- fast/default/slow × effects.
+
+Stiffness, dampingRatio y escalares equivalentes usan `$type: "number"`; tiempos usan `duration`. No crear un `$type` no estándar para spring. Spatial puede permitir overshoot cuando corresponda; effects no debe overshoot.
+
+`prefers-reduced-motion` es gate obligatorio: transform/morph/movimiento espacial se elimina o degrada a cambio no espacial mínimo.
+
+### Spacing/layout
+
+Debe haber:
+
+- escala espacial;
+- gutters;
+- gaps;
+- pane spacing;
+- target sizes;
+- max content widths;
+- roles de columns/grid;
+- responsive density.
+
+Breakpoints width:
+
+- compact `<600px`;
+- medium `>=600px`;
+- expanded `>=840px`;
+- large `>=1200px`;
+- xlarge `>=1600px`.
+
+Breakpoints height:
+
+- compact `<480px`;
+- medium `>=480px`;
+- expanded `>=900px`.
+
+No usar una grilla rígida universal. Separar viewport, spacing foundation y roles layout semánticos.
+
+### Sizing/border/opacity/layering
+
+Tokenizar cuando se repitan o sean parte del sistema:
+
+- icon sizes;
+- control heights;
+- touch target mínimo;
+- border/stroke widths;
+- stroke styles y borders compuestos;
+- opacity no cubierta por state;
+- capas de overlays/drawers/dialogs/popovers realmente usados.
+
+No dispersar `z-index` mágicos. Excepciones intrínsecas a assets externos deben documentarse y no convertirse en patrón.
+
+## 14. Component tokens
+
+Cada primitive, pattern, layout y template productivo tiene `component.<name>` con cobertura según aplique de:
+
+- container;
+- content;
+- icon;
+- outline;
+- state-layer;
+- selected;
+- disabled;
+- error;
+- typography/type;
+- shape;
+- elevation;
+- size;
+- spacing/space;
+- focus;
+- motion.
+
+Los component tokens aliasan semantic/foundation y no duplican valores gratuitamente.
+
+Component CSS no debe contener valores repetidos que deberían venir de tokens. En particular, auditar:
+
+- hex/rgb/hsl;
+- spacing repetido;
+- radius repetido;
+- motion repetido;
+- elevation/shadows repetidos;
+- tipografía repetida;
+- tamaños de icon/control/target repetidos;
+- borders/strokes repetidos.
+
+## 15. Bridge JSON -> CSS
+
+- La generación es determinista 1:1.
+- JSON sigue siendo fuente única.
+- Toda custom property tiene token fuente.
+- No hay custom properties huérfanas.
+- Todo token destinado a CSS produce salida.
+- Component CSS sólo consume custom properties semánticas o de componente, salvo excepción técnica documentada.
+- La correspondencia path token -> nombre CSS debe ser estable y testeable.
+
+## 16. Determinismo
 
 Mismos inputs + misma configuración funcional deben producir mismo contenido funcional.
 
@@ -199,13 +430,14 @@ Requisitos:
 - serialización estable donde el formato lo permita;
 - manifest con orden definido;
 - ZIP con contenido funcional reproducible según las capacidades de la librería elegida;
+- generación de tokens CSS estable;
 - timestamps opcionales sólo como metadata separada;
 - timestamps no participan de matching, pricing, preflight, hashes funcionales ni selección de reglas;
 - no depender de orden accidental de iteración, locale del sistema o timezone para decisiones funcionales.
 
 Si una dependencia introduce nondeterminismo, debe quedar detectado y mitigado o documentado como bloqueo.
 
-## 14. Build, handoff y distribución
+## 17. Build, handoff y distribución
 
 Existe un único pipeline portable:
 
@@ -222,7 +454,7 @@ Existe un único pipeline portable:
 
 No crear un pipeline alternativo para CI/Pages.
 
-## 15. QA mínimo por cambio
+## 18. QA mínimo por cambio
 
 Antes de cerrar una tarea, ejecutar lo aplicable al ownership:
 
@@ -233,11 +465,43 @@ Antes de cerrar una tarea, ejecutar lo aplicable al ownership:
 - validación de determinismo si cambia output;
 - validación de integridad si cambia SVG/export;
 - validación de accesibilidad si cambia UI;
+- validación de tokens si cambia JSON/CSS/UI;
 - validación Windows/Linux/Pages si cambia handoff/build.
 
 Si un test no puede ejecutarse, reportar causa exacta. No sustituir ejecución faltante por una afirmación de éxito.
 
-## 16. Preflight y errores
+## 19. QA específico de tokens
+
+W4 debe poder demostrar antes de cerrar:
+
+- JSON estructuralmente válido;
+- tipos válidos y no inferidos por valor;
+- aliases existentes y resolubles;
+- cero ciclos;
+- cobertura foundation -> semantic -> component;
+- catálogo foundation+semantic mínimo completo;
+- component tokens exhaustivos para cada componente real;
+- bridge CSS 1:1;
+- cero custom properties huérfanas;
+- cero tokens destinados a CSS sin salida;
+- cero `.styles.ts`/`.template.ts`;
+- archivos reales `.html/.css/.ts` por unidad;
+- reduced-motion implementable desde tokens/estilos;
+- cero hardcodes visuales evitables en component CSS.
+
+W6 debe validar de forma independiente:
+
+- schema/estructura;
+- `$type` y forma de `$value`;
+- referencias/aliases y ciclos;
+- correspondencia JSON -> CSS;
+- ausencia de variables CSS huérfanas;
+- ausencia de tokens CSS-exportables sin salida;
+- cobertura de componentes reales;
+- ausencia de hex/rgb/hsl y spacing/radius/motion/elevation repetidos que deban provenir de tokens;
+- excepciones únicamente cuando sean intrínsecas a un asset externo y estén documentadas.
+
+## 20. Preflight y errores
 
 Preflight debe representar `OK/WARNING/ERROR` y contexto suficiente para diagnóstico. Debe contemplar, cuando corresponda:
 
@@ -253,7 +517,7 @@ Preflight debe representar `OK/WARNING/ERROR` y contexto suficiente para diagnó
 
 Los errores deben aislarse por SVG cuando sea posible.
 
-## 17. Commits y cierre de worker
+## 21. Commits y cierre de worker
 
 Cada worker debe reportar al final:
 

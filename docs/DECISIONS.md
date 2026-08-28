@@ -12,6 +12,13 @@ Este documento separa decisiones congeladas, hechos observados y puntos que no d
 - No se requieren credenciales frontend para el pipeline principal.
 - Una adquisición remota futura, si existe, es un adapter separado y no sustituye el pipeline local.
 
+### Contratos compartidos
+
+- `src/domain/contracts/**` es la ubicación canónica y única de contratos compartidos.
+- No existe una migración prevista hacia otra ruta.
+- La razón arquitectónica es preservar estabilidad de imports, mantener una sola fuente de verdad y evitar churn sin beneficio funcional.
+- Ningún worker debe crear una jerarquía paralela de contratos equivalentes.
+
 ### Placeholders
 
 - `$$$$` significa NORMAL.
@@ -49,7 +56,7 @@ Orden congelado:
 - Debe evitarse reserialización global.
 - Paths, imágenes, viewBox, defs, filters, gradients, patterns y regiones no-target deben preservarse.
 
-### Fuentes y layout
+### Fuentes y layout de precio
 
 - La fuente del precio se hereda del SVG real.
 - Se resuelven únicamente las familias requeridas.
@@ -75,16 +82,126 @@ Orden congelado:
 - Cada unidad usa archivos reales `.html + .css + .ts`, más `index.ts` cuando corresponda.
 - No se adopta `.template.ts` ni `.styles.ts` como patrón arquitectónico.
 - No Sass/SCSS.
+- No `css\`...\`` ni `html\`...\`` como fuente principal.
 - TypeScript no es fuente del markup principal ni de la hoja CSS principal.
 - Importar `.html/.css` estáticos mediante `?raw` es válido.
 
-### Tokens
+### Sistema de design tokens
 
-- `src/tokens/tokens.json` es la fuente canónica.
-- Primitive y semantic tokens se separan.
-- Se usan `$type`, `$value` y aliases.
-- `src/styles/tokens.css` es bridge 1:1 a CSS custom properties.
-- Component CSS consume semantic custom properties.
+#### Fuente y capas
+
+- `src/tokens/tokens.json` es la única fuente de verdad.
+- `src/tokens/tokens.css` es bridge generado/validado 1:1 desde JSON.
+- Las únicas capas canónicas son `foundation.*`, `semantic.*` y `component.*`.
+- Foundation contiene valores base; semantic expresa roles mediante aliases; component expresa decisiones de componentes reales mediante aliases.
+- No se duplica un valor cuando existe un alias válido.
+- No se crean component tokens para componentes inexistentes.
+
+#### Forma del JSON
+
+- Todo token es objeto con `$value`.
+- `$type` es explícito o heredado inequívocamente desde el grupo; no se infiere por valor.
+- `$description` es opcional.
+- Un grupo no tiene `$value`.
+- Un objeto no puede ser simultáneamente token y grupo con hijos.
+- Los aliases usan `{path.to.token}`.
+- Toda referencia debe existir y ninguna referencia puede formar ciclos.
+- Extensiones sólo se permiten si no existe tipo estándar aplicable.
+- Cuando correspondan se usan `color`, `dimension`, `fontFamily`, `fontWeight`, `duration`, `cubicBezier`, `number`, `strokeStyle`, `border`, `transition`, `shadow`, `gradient`, `typography`.
+- Colores usan valor estructurado con `colorSpace`, `components` y `alpha` cuando corresponda; `hex` sólo es representación auxiliar.
+- Dimensiones y duraciones usan valor numérico + unidad.
+- Cubic bezier usa cuatro números.
+- Typography, border, transition, shadow y gradient usan composites.
+
+#### Catálogo mínimo
+
+Color foundation:
+
+- accent-primary;
+- accent-secondary;
+- accent-tertiary;
+- neutral;
+- neutral-variant;
+- error.
+
+Color semantic light/dark con el mismo árbol:
+
+- primary/on-primary/container/on-container;
+- secondary equivalente;
+- tertiary equivalente;
+- error equivalente;
+- background/on-background;
+- surface/on-surface;
+- surface-variant/on-surface-variant;
+- surface-dim/surface-bright;
+- surface-container-lowest/low/base/high/highest;
+- outline/outline-variant;
+- inverse-surface/inverse-on-surface/inverse-primary;
+- shadow, scrim, surface-tint;
+- fixed/fixed-dim/on-fixed/on-fixed-variant para los tres accents.
+
+Typography foundation:
+
+- family brand/plain;
+- weights regular/medium/bold;
+- tracking base y escalas necesarias.
+
+`Inter` permanece como familia UI offline-first/fallback salvo decisión posterior explícita.
+
+Typography semantic:
+
+- display/headline/title/body/label × large/medium/small = 15 composites base;
+- cada composite incluye fontFamily/fontSize/fontWeight/letterSpacing/lineHeight;
+- `emphasized` conserva métricas 1:1 y cambia peso mediante token/alias;
+- `prominent` sólo existe donde haya uso real.
+
+Shape:
+
+- none, extra-small, small, medium, large, extra-large, full;
+- esquinas lógicas start-start/start-end/end-start/end-end derivadas;
+- variantes parciales sólo para componentes reales;
+- geometrías complejas no escalares no fuerzan tipos inexistentes.
+
+Elevation/state/focus:
+
+- elevation 0..5 como shadow composites;
+- hover `0.08`, focus `0.12`, pressed `0.12`, dragged `0.16`, disabled-content `0.38`, disabled-container `0.12`;
+- focus ring con width, active-width, inward/outward offset, shape, color y duration.
+
+Motion:
+
+- durations 50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 700, 800, 900, 1000 ms;
+- curves standard/emphasized/decelerate/accelerate y linear cuando corresponda;
+- transitions compuestas;
+- seis familias semánticas fast/default/slow × spatial/effects;
+- parámetros físicos escalares usan `number`, tiempos usan `duration`, sin tipo especial inventado;
+- spatial puede overshoot cuando corresponda; effects no;
+- reduced-motion es obligatorio y elimina/degrada transformaciones espaciales.
+
+Layout/sizing/layering:
+
+- escala espacial, gutters, gaps, pane spacing, target sizes, max content widths, grid/columns roles y responsive density;
+- width compact `<600`, medium `>=600`, expanded `>=840`, large `>=1200`, xlarge `>=1600`;
+- height compact `<480`, medium `>=480`, expanded `>=900`;
+- sin grilla rígida universal;
+- icon sizes, control heights, touch target mínimo, border/stroke widths y opacity reusable cuando corresponda;
+- overlays/drawers/dialogs/popovers usados deben tener layering semántico, sin `z-index` mágicos dispersos.
+
+#### Component tokens
+
+Cada primitive/pattern/layout/template productivo tiene `component.<name>` y cubre según aplique container, content, icon, outline, state-layer, selected, disabled, error, typography, shape, elevation, size, spacing, focus y motion.
+
+Component CSS consume custom properties semánticas/de componente y no repite valores que deberían venir del catálogo. Excepciones sólo para valores intrínsecos de assets externos, documentadas.
+
+#### Bridge y validación
+
+- JSON es la única fuente de verdad.
+- La salida CSS es determinista y 1:1.
+- No puede haber custom properties sin token fuente.
+- No puede haber token destinado a CSS sin salida.
+- Los nombres CSS deben ser trazables al path del token.
+- W4 no cierra sin catálogo completo y consumo correcto.
+- W6 valida estructura, tipos, aliases, ciclos, bridge, cobertura y ausencia de hardcodes evitables.
 
 ### Preflight y batch
 
@@ -122,10 +239,11 @@ Orden congelado:
 - W6: tests, fixtures, sample-data.
 - Un worker no edita fuera de ownership: emite `DEPENDENCY REQUEST`.
 - Integración ocurre en branch/worker dedicado y no reimplementa módulos.
+- Integración no mueve `src/domain/contracts/**` por razones estéticas.
 
 ## B. Hechos observados
 
-Estos hechos describen estado verificado al crear este documento; no los convierte en integración ni en contrato futuro si cambian las branches.
+Estos hechos describen estado verificado al crear esta documentación; no los convierte en integración ni en contrato futuro si cambian las branches.
 
 ### `main`
 
@@ -133,7 +251,7 @@ Estos hechos describen estado verificado al crear este documento; no los convier
 - Parent directo observado: `53bca21f75d0f2942ee4eb575919891900c46c31`.
 - Merge-base entre ese parent y `main` HEAD: `53bca21f75d0f2942ee4eb575919891900c46c31`.
 - Contiene baseline de arquitectura y contratos W1.
-- Los contratos baseline están físicamente en `src/domain/contracts/**`.
+- Los contratos baseline están físicamente en `src/domain/contracts/**`; esa ruta queda congelada como canónica.
 
 ### Toolchain baseline
 
@@ -158,9 +276,9 @@ Estos hechos describen estado verificado al crear este documento; no los convier
 ### W4
 
 - Branch observada: `feat/ui-workbench`.
-- HEAD observado al momento de esta documentación: `68f5fb6d0f1d49454f9c18f9b283e921b8268e12`.
+- HEAD observado en la inspección previa: `68f5fb6d0f1d49454f9c18f9b283e921b8268e12`.
 - La inspección del árbol remoto mostró todavía archivos `.template.ts` y `.styles.ts` en unidades visuales.
-- Por lo tanto W4 está en refinamiento estructural y no cumple aún el gate canónico `.html/.css/.ts`.
+- Por lo tanto W4 está en refinamiento estructural y además debe satisfacer el gate completo de tokens antes de cerrar.
 - No se considera integrado a `main`.
 
 ### W5
@@ -170,13 +288,6 @@ Estos hechos describen estado verificado al crear este documento; no los convier
 - El trabajo de distribución existe en branch propia.
 - Sigue parcial por validación npm real/red/lockfile/Windows/Linux/Pages.
 - No se considera integrado a `main`.
-
-### Estructura de contratos actual vs objetivo
-
-- Hecho actual: `main` usa `src/domain/contracts/**`.
-- Norma objetivo de directorio: `src/contracts/**`.
-- Esta branch W1 documental no tiene ownership para mover `src/**`.
-- Una integración dedicada deberá decidir y ejecutar una migración atómica si se normaliza esa ubicación; hasta entonces no se crean contratos duplicados.
 
 ## C. NO ASUMIR / pendientes
 
@@ -214,9 +325,9 @@ Pendiente: generar/validar un lockfile npm canónico íntegro en entorno con red
 
 Pendiente: ejecutar el mismo handoff/pipeline real en Windows y Linux, y comprobar que GitHub Pages ensambla el mismo paquete, ejecuta exactamente ese pipeline y publica exactamente su `dist`.
 
-### Migración física de contratos
+### Implementación y QA del sistema de tokens
 
-Pendiente operativo: normalizar `src/domain/contracts/**` a la ubicación objetivo `src/contracts/**` sólo si integración lo aprueba. Debe hacerse sin definiciones paralelas ni cambios contractuales accidentales.
+Pendiente operativo: W4 debe materializar el catálogo completo y el bridge 1:1; W6 debe validarlos. La arquitectura ya está congelada, pero eso no equivale a implementación ni QA completados.
 
 ### Librerías concretas
 

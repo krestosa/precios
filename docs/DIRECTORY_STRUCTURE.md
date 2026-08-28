@@ -2,7 +2,7 @@
 
 ## Regla general
 
-La estructura siguiente es la norma objetivo. Una unidad nueva debe ubicarse por responsabilidad, no por conveniencia. No se crean carpetas paralelas que dupliquen dominio, contratos o UI.
+La estructura siguiente es la norma objetivo. Una unidad nueva debe ubicarse por responsabilidad, no por conveniencia. No se crean carpetas paralelas que dupliquen dominio, contratos, tokens o UI.
 
 ```text
 src/
@@ -41,13 +41,14 @@ src/
 │  ├─ font-resolver/
 │  └─ export/
 ├─ domain/
+│  ├─ contracts/
 │  └─ pricing/
-├─ contracts/
 ├─ tokens/
-│  └─ tokens.json
-├─ styles/
+│  ├─ tokens.json
 │  ├─ tokens.css
-│  └─ ... global/reset sólo si corresponde
+│  └─ schema/              # opcional: schema/validator, sin valores duplicados
+├─ styles/
+│  └─ ... reset/global sólo si corresponde
 ├─ utils/
 │  ├─ normalize/
 │  └─ parsing/
@@ -86,24 +87,26 @@ No permitido:
 
 ## `src/components/primitives/**`
 
-Unidad visual mínima reutilizable. Cada primitive tiene carpeta propia y los archivos reales:
+Unidad visual mínima reutilizable. Cada primitive tiene carpeta propia y archivos reales:
 
 - `<name>.html`;
 - `<name>.css`;
 - `<name>.ts`;
 - `index.ts` cuando corresponda.
 
-No se permiten `.template.ts` ni `.styles.ts` como sustitutos.
+No se permiten `.template.ts`, `.styles.ts`, `css\`...\`` ni `html\`...\`` como sustitutos del archivo real.
+
+Cada primitive productivo debe tener cobertura de tokens bajo `component.<name>` según sus ejes visuales reales.
 
 ## `src/components/patterns/**`
 
 Composición reusable de primitives y/o otras unidades visuales. Mismas reglas de archivos que primitives.
 
-Un pattern no representa una pantalla completa ni debe incorporar lógica de parsing/pricing/matching/SVG.
+Un pattern no representa una pantalla completa ni debe incorporar lógica de parsing/pricing/matching/SVG. Cada pattern real debe tener cobertura `component.<name>` de sus decisiones visuales propias; no duplica tokens de primitives que sólo compone.
 
 ## `src/layout/**`
 
-Estructura espacial reusable: shells, splits, stacks, panes u otras composiciones equivalentes necesarias por producto. Cada layout mantiene `.html + .css + .ts` separados.
+Estructura espacial reusable: shells, splits, stacks, panes u otras composiciones equivalentes necesarias por producto. Cada layout mantiene `.html + .css + .ts` separados y tokens `component.<name>` sólo para decisiones espaciales/visuales propias que deban parametrizarse.
 
 No contiene reglas de negocio.
 
@@ -111,7 +114,7 @@ No contiene reglas de negocio.
 
 Screen-templates o estructuras de flujo/pantalla. Cada template visual tiene carpeta y archivos reales `.html + .css + .ts`, más `index.ts` cuando corresponda.
 
-El template compone patterns/layouts y conecta view-models; no implementa dominio.
+El template compone patterns/layouts y conecta view-models; no implementa dominio. Si tiene decisiones visuales propias reutilizadas o temáticas, las expresa mediante `component.<name>`.
 
 ## `src/features/ui/**`
 
@@ -130,6 +133,14 @@ No decide matching ni precedencia de pricing.
 Implementa exclusivamente la escalera de matching, scoring/sugerencias permitidas y conservación de selección manual de sesión/batch.
 
 No resuelve precios ni edita SVG.
+
+## `src/domain/contracts/**`
+
+Ubicación canónica y única de contratos compartidos entre workers/módulos. Contiene tipos y contratos, no lógica de negocio.
+
+Esta ubicación ya existe y permanece estable. No se planifica migrarla a otra jerarquía: mantenerla evita churn de imports, preserva una sola fuente de verdad y no introduce movimiento estructural sin beneficio funcional.
+
+No crear contratos equivalentes en otra ruta.
 
 ## `src/domain/pricing/**`
 
@@ -153,28 +164,64 @@ Export individual, ZIP, manifests, hashes/identificadores estables y validacione
 
 No redefine reglas de pricing ni modifica targets SVG fuera de la API del engine.
 
-## `src/contracts/**`
-
-Ubicación objetivo de contratos compartidos entre workers/módulos. Debe contener tipos/contratos, no lógica de negocio.
-
-Estado actual observado: el baseline en `main` conserva contratos W1 bajo `src/domain/contracts/**`. Hasta que una integración dedicada normalice la ubicación, esos contratos existentes son la fuente real y no deben duplicarse en `src/contracts/**`. La migración debe ser atómica y explícitamente autorizada.
-
 ## `src/tokens/tokens.json`
 
-Fuente canónica de design tokens.
+Única fuente de verdad del sistema de design tokens.
+
+Árbol canónico:
+
+```text
+foundation.*
+semantic.*
+component.*
+```
+
+Responsabilidades:
+
+- `foundation.*`: valores base concretos y escalas.
+- `semantic.*`: roles mediante aliases a foundation.
+- `component.*`: decisiones de cada componente real mediante aliases a semantic/foundation.
+
+Reglas de forma:
+
+- token = objeto con `$value`;
+- `$type` explícito o heredado inequívocamente;
+- `$description` opcional;
+- grupo = objeto sin `$value`;
+- ningún objeto token puede tener hijos de grupo;
+- aliases `{path.to.token}`;
+- referencias válidas y sin ciclos;
+- no duplicar valores si existe un alias correcto;
+- usar tipos estándar disponibles (`color`, `dimension`, `fontFamily`, `fontWeight`, `duration`, `cubicBezier`, `number`, `strokeStyle`, `border`, `transition`, `shadow`, `gradient`, `typography`).
+
+El catálogo mínimo completo está definido en `docs/ARCHITECTURE.md` y sus gates en `docs/ROADMAP.md`.
+
+## `src/tokens/tokens.css`
+
+Bridge CSS generado/validado 1:1 desde `tokens.json`.
 
 Reglas:
 
-- separar primitive tokens y semantic tokens;
-- usar `$type`, `$value` y aliases;
-- evitar duplicación de valores y hardcodes evitables;
-- component CSS consume semantic tokens mediante custom properties.
+- nunca es fuente de verdad independiente;
+- no contiene valores que no provengan del JSON;
+- toda custom property debe mapear a un token fuente;
+- todo token destinado a CSS debe producir su salida;
+- nombres de custom properties deben ser deterministas y trazables al path del token;
+- component CSS consume custom properties semánticas o de componente.
 
-## `src/styles/tokens.css`
+## `src/tokens/schema/**` opcional
 
-Bridge 1:1 de tokens JSON a CSS custom properties. No es una segunda fuente de verdad.
+Puede contener schema, fixtures de validación o definiciones auxiliares para verificar `tokens.json`.
 
-Otros archivos en `src/styles/**` sólo para reset/global realmente global. Estilos de una unidad visual pertenecen a su propia carpeta.
+No puede contener una copia de valores del catálogo. Su función es validar estructura, tipos, referencias, ciclos y reglas de salida, no convertirse en otra fuente de tokens.
+
+## `src/styles/**`
+
+Sólo reset/global realmente global y estilos que no pertenecen a una unidad visual concreta.
+
+El bridge de tokens no vive aquí; su ubicación canónica es `src/tokens/tokens.css` junto a la fuente JSON.
+
+No usar esta carpeta como depósito de estilos de componentes.
 
 ## `src/utils/normalize/**`
 
@@ -194,7 +241,7 @@ Composition root mínimo. Registra/inicializa y conecta módulos. No contiene l�
 
 ## `tests/**`
 
-Tests automatizados de unidad, integración y/o sistema según ownership W6. No se mezclan fixtures reales dentro del código productivo.
+Tests automatizados de unidad, integración y/o sistema según ownership W6. Incluye validaciones de schema/tipos/referencias de tokens, bridge CSS y auditorías de hardcodes cuando corresponda.
 
 ## `fixtures/**`
 
@@ -226,8 +273,9 @@ Documentación canónica y decisiones. No almacenar aquí código productivo que
 - El basename de `.html`, `.css` y `.ts` debe coincidir con la carpeta.
 - `index.ts` expone la API pública de la unidad; no concentra implementación.
 - Evitar barrels globales que creen ciclos o oculten ownership.
+- Paths de token usan nombres propios del proyecto y jerarquía `foundation|semantic|component`.
 
-## Archivos/patrones prohibidos por arquitectura visual
+## Patrones prohibidos por arquitectura visual
 
 - `*.template.ts` como fuente principal de markup.
 - `*.styles.ts` como fuente principal de CSS.
@@ -235,5 +283,6 @@ Documentación canónica y decisiones. No almacenar aquí código productivo que
 - `css\`...\`` o arrays/strings TypeScript que construyan hojas de estilo principales.
 - `html\`...\`` o strings TypeScript como markup estructural principal.
 - CSS hardcodeado en TypeScript salvo valores dinámicos puntuales que no constituyan una hoja de estilos y estén justificados.
+- valores visuales repetidos en component CSS cuando existe o debe existir token semántico/de componente.
 
 La importación `?raw` de archivos `.html/.css` reales sí es válida porque preserva la separación de fuentes.
