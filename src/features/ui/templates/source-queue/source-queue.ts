@@ -3,11 +3,12 @@ import styles from './source-queue.css?raw';
 import '../../../../components';
 import { mountStaticShadow, requiredElement, upgradeProperty } from '../../../../components/shadow';
 import type { DataList, DataListItem, FileDropzone, FilesSelectedDetail, StatusChip } from '../../../../components';
-import type { PriceSourceView, UiLoadStatus, WorkbookSheetView } from '../../models';
+import type { PriceSourceView, ResolutionDefaultsView, ResolutionOptionView, UiLoadStatus, WorkbookSheetView } from '../../models';
 import { emitUiTemplateEvent } from '../template-events';
 
 export interface SourceQueueTemplateView {
   readonly source: PriceSourceView;
+  readonly resolutionDefaults?: ResolutionDefaultsView;
   readonly svgLoadStatus: UiLoadStatus;
   readonly items: readonly DataListItem[];
 }
@@ -22,6 +23,10 @@ function sheetOptionLabel(sheet: WorkbookSheetView): string {
 
 function sheetOptionsSignature(sheets: readonly WorkbookSheetView[]): string {
   return JSON.stringify(sheets.map((sheet) => [sheet.index, sheet.name, sheet.visibility, sheet.supportStatus ?? 'unknown']));
+}
+
+function resolutionOptionsSignature(options: readonly ResolutionOptionView[]): string {
+  return JSON.stringify(options.map((option) => [option.value, option.label]));
 }
 
 function sourceLoadStatus(source: PriceSourceView): UiLoadStatus {
@@ -60,10 +65,19 @@ export class SourceQueueTemplate extends HTMLElement {
   private readonly sheetMessage: HTMLElement;
   private readonly sheetSummary: HTMLElement;
   private readonly sheetWarnings: HTMLElement;
+  private readonly resolutionDefaults: HTMLElement;
+  private readonly localField: HTMLElement;
+  private readonly localSelect: HTMLSelectElement;
+  private readonly channelField: HTMLElement;
+  private readonly channelSelect: HTMLSelectElement;
+  private readonly resolutionNext: HTMLElement;
+  private readonly resolutionOptionTemplate: HTMLTemplateElement;
   private readonly queue: DataList;
   private readonly queueEmpty: HTMLElement;
   private viewValue: SourceQueueTemplateView | undefined;
   private sheetOptionsKey = '';
+  private localOptionsKey = '';
+  private channelOptionsKey = '';
 
   constructor() {
     super();
@@ -81,11 +95,20 @@ export class SourceQueueTemplate extends HTMLElement {
     this.sheetMessage = requiredElement(root, '.sheet-message');
     this.sheetSummary = requiredElement(root, '.sheet-summary');
     this.sheetWarnings = requiredElement(root, '.sheet-warnings');
+    this.resolutionDefaults = requiredElement(root, '.resolution-defaults');
+    this.localField = requiredElement(root, '.local-field');
+    this.localSelect = requiredElement(root, '.batch-local');
+    this.channelField = requiredElement(root, '.channel-field');
+    this.channelSelect = requiredElement(root, '.batch-channel');
+    this.resolutionNext = requiredElement(root, '.resolution-next');
+    this.resolutionOptionTemplate = requiredElement(root, '.resolution-option-template');
     this.queue = requiredElement(root, '.queue');
     this.queueEmpty = requiredElement(root, '.queue-empty');
     this.sourceDropzone.addEventListener('files-selected', (event) => { event.stopPropagation(); emitUiTemplateEvent(this, 'ui:source-files', (event as CustomEvent<FilesSelectedDetail>).detail); });
     this.svgDropzone.addEventListener('files-selected', (event) => { event.stopPropagation(); emitUiTemplateEvent(this, 'ui:svg-files', (event as CustomEvent<FilesSelectedDetail>).detail); });
     this.sheetSelect.addEventListener('change', () => { if (this.sheetSelect.value) emitUiTemplateEvent(this, 'ui:sheet-select', { sheetName: this.sheetSelect.value }); });
+    this.localSelect.addEventListener('change', () => { if (this.localSelect.value) emitUiTemplateEvent(this, 'ui:local-select', { scope: 'batch', local: this.localSelect.value }); });
+    this.channelSelect.addEventListener('change', () => { if (this.channelSelect.value) emitUiTemplateEvent(this, 'ui:channel-select', { scope: 'batch', channel: this.channelSelect.value }); });
     this.queue.addEventListener('item-activate', (event) => { event.stopPropagation(); emitUiTemplateEvent(this, 'ui:file-activate', (event as CustomEvent<{ readonly id: string }>).detail); });
   }
 
@@ -105,10 +128,45 @@ export class SourceQueueTemplate extends HTMLElement {
     this.sourceName.textContent = view.source.fileName ?? '';
     this.sourceMessage.textContent = view.source.message ?? '';
     this.syncSheetSelector(view.source);
+    this.syncResolutionDefaults(view.resolutionDefaults);
     this.queue.items = view.items;
     this.queue.label = 'Cola de SVG';
     this.queue.hidden = view.items.length === 0;
     this.queueEmpty.hidden = view.items.length > 0;
+  }
+
+  private syncSelectOptions(select: HTMLSelectElement, options: readonly ResolutionOptionView[], currentKey: string): string {
+    const nextKey = resolutionOptionsSignature(options);
+    if (nextKey === currentKey) return currentKey;
+    while (select.options.length > 1) select.remove(1);
+    options.forEach((item) => {
+      const fragment = this.resolutionOptionTemplate.content.cloneNode(true) as DocumentFragment;
+      const option = requiredElement<HTMLOptionElement>(fragment, 'option');
+      option.value = item.value;
+      option.textContent = item.label;
+      select.append(fragment);
+    });
+    return nextKey;
+  }
+
+  private syncResolutionDefaults(defaults: ResolutionDefaultsView | undefined): void {
+    const localOptions = defaults?.localOptions ?? [];
+    const channelOptions = defaults?.channelOptions ?? [];
+    const visible = localOptions.length > 0 || channelOptions.length > 0;
+    this.resolutionDefaults.hidden = !visible;
+    this.localField.hidden = localOptions.length === 0;
+    this.channelField.hidden = channelOptions.length === 0;
+    this.localOptionsKey = this.syncSelectOptions(this.localSelect, localOptions, this.localOptionsKey);
+    this.channelOptionsKey = this.syncSelectOptions(this.channelSelect, channelOptions, this.channelOptionsKey);
+    this.localSelect.value = defaults?.selectedLocal ?? '';
+    this.channelSelect.value = defaults?.selectedChannel ?? '';
+    if (!visible) {
+      this.resolutionNext.textContent = '';
+      return;
+    }
+    if (localOptions.length > 0 && !defaults?.selectedLocal) this.resolutionNext.textContent = 'Siguiente requisito: seleccioná un local de precios.';
+    else if (channelOptions.length > 0 && !defaults?.selectedChannel) this.resolutionNext.textContent = 'Siguiente requisito: seleccioná un canal.';
+    else this.resolutionNext.textContent = 'Selección de precios del lote lista.';
   }
 
   private syncSheetOptions(sheets: readonly WorkbookSheetView[]): void {
@@ -151,7 +209,6 @@ export class SourceQueueTemplate extends HTMLElement {
 
     this.syncSheetOptions(sheets);
     this.sheetSelect.value = source.selectedSheetName ?? '';
-
     this.sheetSuggestion.hidden = !source.suggestedSheetName;
     this.sheetSuggestion.textContent = source.suggestedSheetName ? `Sugerida: ${source.suggestedSheetName}` : '';
 

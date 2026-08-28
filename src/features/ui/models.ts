@@ -15,6 +15,9 @@ export type UiLoadStatus = 'empty' | 'loading' | 'ready' | 'error';
 export type ProcessingState = 'queued' | 'processing' | 'ready' | 'warning' | 'error';
 export type WorkbookSheetVisibility = 'visible' | 'hidden' | 'veryHidden';
 export type SheetSupportStatus = 'unknown' | 'supported' | 'unsupported';
+export type ActionMatchStatus = 'pending' | 'matched' | 'suggestion' | 'ambiguous' | 'unmatched';
+export type ResolutionBlocker = 'action' | 'local' | 'channel' | 'price' | null;
+export type PriceDisplayState = 'selection-required' | 'unavailable' | 'empty' | 'unknown' | 'resolved';
 export type PreviewMode = 'original' | 'result' | 'overlay';
 export type FontUiStatus = 'installed' | 'uploaded' | 'missing' | 'mismatch';
 export type LayoutIssueKind = 'overflow' | 'alignment' | 'missing-font';
@@ -55,6 +58,23 @@ export interface PriceSourceView {
   readonly selectedSheetSummary?: WorkbookSheetSummaryView;
 }
 
+export interface ResolutionOptionView {
+  readonly value: string;
+  readonly label: string;
+}
+
+export interface ResolutionDefaultsView {
+  readonly localOptions: readonly ResolutionOptionView[];
+  readonly selectedLocal?: string;
+  readonly channelOptions: readonly ResolutionOptionView[];
+  readonly selectedChannel?: string;
+}
+
+export interface PriceDisplayView {
+  readonly state: PriceDisplayState;
+  readonly message?: string;
+}
+
 export interface PreviewAsset {
   readonly kind: 'markup' | 'url';
   readonly value: string;
@@ -90,6 +110,8 @@ export interface FontView {
 export interface FilePriceView {
   readonly normal?: PriceField;
   readonly eminent?: PriceField;
+  readonly normalDisplay?: PriceDisplayView;
+  readonly eminentDisplay?: PriceDisplayView;
   readonly discount25?: Discount25Validation;
 }
 
@@ -99,6 +121,16 @@ export interface WorkbenchFileView {
   readonly processingState: ProcessingState;
   readonly processingMessage?: string;
   readonly selected?: boolean;
+  readonly actionLabel?: string;
+  readonly actionMatchStatus?: ActionMatchStatus;
+  readonly actionMatchMethodLabel?: string;
+  readonly formatLabel?: string;
+  readonly pieceIndex?: number;
+  readonly localOptions?: readonly ResolutionOptionView[];
+  readonly selectedLocal?: string;
+  readonly channelOptions?: readonly ResolutionOptionView[];
+  readonly selectedChannel?: string;
+  readonly resolutionBlocker?: ResolutionBlocker;
   readonly detectedLocal?: string;
   readonly match?: MatchResult;
   readonly classification?: SvgClass;
@@ -124,6 +156,7 @@ export interface WorkbenchProgressView {
 
 export interface WorkbenchViewModel {
   readonly source: PriceSourceView;
+  readonly resolutionDefaults?: ResolutionDefaultsView;
   readonly svgLoadStatus: UiLoadStatus;
   readonly files: readonly WorkbenchFileView[];
   readonly fonts: readonly FontView[];

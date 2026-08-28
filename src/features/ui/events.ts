@@ -1,6 +1,13 @@
 import type { LayoutIssueKind } from './models';
 
 export type MatchApplyScope = 'session' | 'batch';
+export type ResolutionSelectionScope = 'batch' | 'file';
+export type LocalSelectDetail =
+  | { readonly scope: 'batch'; readonly local: string }
+  | { readonly scope: 'file'; readonly fileId: string; readonly local: string };
+export type ChannelSelectDetail =
+  | { readonly scope: 'batch'; readonly channel: string }
+  | { readonly scope: 'file'; readonly fileId: string; readonly channel: string };
 export type PreviewCommand = 'fit' | 'zoom-in' | 'zoom-out' | 'reset';
 export type ExportKind = 'batch' | 'file' | 'zip' | 'manifest';
 export type ManifestUiFormat = 'json' | 'csv';
@@ -8,6 +15,8 @@ export type ManifestUiFormat = 'json' | 'csv';
 export interface WorkbenchEventMap {
   'pw:price-source-files': { readonly files: readonly File[] };
   'pw:sheet-select': { readonly sheetName: string };
+  'pw:local-select': LocalSelectDetail;
+  'pw:channel-select': ChannelSelectDetail;
   'pw:svg-files': { readonly files: readonly File[] };
   'pw:font-files': { readonly files: readonly File[] };
   'pw:match-apply': { readonly fileId: string; readonly candidateId: string; readonly scope: MatchApplyScope };
@@ -43,6 +52,8 @@ declare global {
   interface HTMLElementEventMap {
     'pw:price-source-files': CustomEvent<WorkbenchEventMap['pw:price-source-files']>;
     'pw:sheet-select': CustomEvent<WorkbenchEventMap['pw:sheet-select']>;
+    'pw:local-select': CustomEvent<WorkbenchEventMap['pw:local-select']>;
+    'pw:channel-select': CustomEvent<WorkbenchEventMap['pw:channel-select']>;
     'pw:svg-files': CustomEvent<WorkbenchEventMap['pw:svg-files']>;
     'pw:font-files': CustomEvent<WorkbenchEventMap['pw:font-files']>;
     'pw:match-apply': CustomEvent<WorkbenchEventMap['pw:match-apply']>;

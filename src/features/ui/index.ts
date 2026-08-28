@@ -1,12 +1,26 @@
 export { PriceWorkbench } from './workbench';
 export { WorkbenchUiStore, type WorkbenchUiState } from './ui-store';
-export { dispatchWorkbenchEvent, type WorkbenchEventMap, type WorkbenchEventName, type MatchApplyScope, type PreviewCommand, type ExportKind, type ManifestUiFormat } from './events';
+export {
+  dispatchWorkbenchEvent,
+  type WorkbenchEventMap,
+  type WorkbenchEventName,
+  type MatchApplyScope,
+  type ResolutionSelectionScope,
+  type LocalSelectDetail,
+  type ChannelSelectDetail,
+  type PreviewCommand,
+  type ExportKind,
+  type ManifestUiFormat,
+} from './events';
 export {
   EMPTY_WORKBENCH_MODEL,
   type UiLoadStatus,
   type ProcessingState,
   type WorkbookSheetVisibility,
   type SheetSupportStatus,
+  type ActionMatchStatus,
+  type ResolutionBlocker,
+  type PriceDisplayState,
   type PreviewMode,
   type FontUiStatus,
   type LayoutIssueKind,
@@ -14,6 +28,9 @@ export {
   type WorkbookSheetView,
   type WorkbookSheetSummaryView,
   type PriceSourceView,
+  type ResolutionOptionView,
+  type ResolutionDefaultsView,
+  type PriceDisplayView,
   type PreviewAsset,
   type PreviewView,
   type LayoutIssueView,

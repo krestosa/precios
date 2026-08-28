@@ -1,31 +1,48 @@
 <pw-empty-state class="no-file" heading="Sin SVG seleccionados" message="Cargá archivos para habilitar matching, precios, preflight y preview."></pw-empty-state>
 <div class="review" hidden>
-  <pw-panel heading="Archivo seleccionado" description="Revisión desacoplada de parsing, matching, pricing y generación.">
+  <pw-panel heading="Archivo seleccionado" description="Acción, formato, local, canal y precios se resuelven como dimensiones separadas.">
     <div class="stack">
-      <div class="row-between"><div class="filename"></div><div class="row"><pw-status-chip class="preflight"></pw-status-chip><pw-button class="details">Ver trazabilidad</pw-button></div></div>
-      <div class="summary-grid">
-        <div class="metric"><span>Local detectado</span><strong data-summary="local"></strong></div>
-        <div class="metric"><span>Matching</span><strong data-summary="matching"></strong></div>
+      <div class="row-between"><div class="filename"></div><div class="row"><pw-status-chip class="resolution-status"></pw-status-chip><pw-status-chip class="preflight"></pw-status-chip><pw-button class="details">Ver trazabilidad</pw-button></div></div>
+      <div class="summary-grid" aria-live="polite">
+        <div class="metric"><span>Acción</span><strong data-summary="action"></strong></div>
+        <div class="metric"><span>Formato / Pieza</span><strong data-summary="format"></strong></div>
+        <div class="metric"><span>Local</span><strong data-summary="local"></strong></div>
+        <div class="metric"><span>Canal</span><strong data-summary="channel"></strong></div>
+        <div class="metric"><span>Matching de acción</span><strong data-summary="matching"></strong></div>
         <div class="metric"><span>Placeholder / precio</span><strong data-summary="classification"></strong></div>
+      </div>
+      <div class="file-resolution-controls">
+        <div class="resolution-field file-local-field" hidden>
+          <label for="file-local">Local de precios</label>
+          <select id="file-local" class="file-local"><option value="">Seleccioná un local</option></select>
+          <span class="file-local-context"></span>
+        </div>
+        <div class="resolution-field file-channel-field" hidden>
+          <label for="file-channel">Canal</label>
+          <select id="file-channel" class="file-channel"><option value="">Seleccioná un canal</option></select>
+          <span class="file-channel-context"></span>
+        </div>
+        <p class="resolution-message" aria-live="polite" aria-atomic="true"></p>
+        <template class="resolution-option-template"><option></option></template>
       </div>
     </div>
   </pw-panel>
 
-  <pw-panel heading="Revisión de matching" description="Las sugerencias aproximadas y ambigüedades requieren una elección humana.">
+  <pw-panel heading="Revisión de matching de acción" description="El matching resuelve la acción; local y canal se seleccionan por separado.">
     <pw-empty-state class="match-empty"></pw-empty-state>
-    <div class="match-resolved" hidden><div class="row"><pw-status-chip tone="success" label="Coincidencia resuelta"></pw-status-chip><span class="match-meta"></span></div><strong class="match-label"></strong><div class="match-canonical"></div></div>
+    <div class="match-resolved" hidden><div class="row"><pw-status-chip tone="success" label="Acción resuelta"></pw-status-chip><span class="match-meta"></span></div><strong class="match-label"></strong><div class="match-canonical"></div></div>
     <div class="match-review" hidden>
       <div class="row"><pw-status-chip class="match-warning" tone="warning"></pw-status-chip><span class="match-confidence"></span></div>
-      <ul class="candidate-list" aria-label="Candidatos de matching"></ul>
+      <ul class="candidate-list" aria-label="Candidatos de acción"></ul>
       <template class="candidate-template"><li class="candidate"><div><strong></strong><div class="candidate-meta"></div></div><span class="candidate-canonical"></span></li></template>
-      <label for="candidate-select"><strong>Selección manual</strong></label>
+      <label for="candidate-select"><strong>Selección manual de acción</strong></label>
       <select id="candidate-select"><option value="">Elegir candidato…</option></select>
       <template class="option-template"><option></option></template>
       <div class="row"><pw-button class="apply-session">Aplicar a sesión</pw-button><pw-button class="apply-batch">Aplicar al lote</pw-button></div>
     </div>
   </pw-panel>
 
-  <pw-panel heading="Precios" description="NORMAL y ÉMINENT permanecen independientes; ausencia significa desconocido.">
+  <pw-panel heading="Precios" description="NORMAL y ÉMINENT se muestran sólo con el estado que entrega el resolver; no existe fallback implícito.">
     <div class="stack">
       <div class="price-grid">
         <article class="price-card" aria-label="Precio NORMAL"><h3>NORMAL</h3><p class="price-value normal-value"></p><div class="provenance normal-provenance"></div></article>

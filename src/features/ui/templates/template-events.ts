@@ -1,10 +1,19 @@
 import type { FilesSelectedDetail } from '../../../components';
-import type { ExportKind, ManifestUiFormat, MatchApplyScope, PreviewCommand } from '../events';
+import type {
+  ChannelSelectDetail,
+  ExportKind,
+  LocalSelectDetail,
+  ManifestUiFormat,
+  MatchApplyScope,
+  PreviewCommand,
+} from '../events';
 import type { LayoutIssueKind, PreviewMode } from '../models';
 
 export interface UiTemplateEventMap {
   'ui:source-files': FilesSelectedDetail;
   'ui:sheet-select': { readonly sheetName: string };
+  'ui:local-select': LocalSelectDetail;
+  'ui:channel-select': ChannelSelectDetail;
   'ui:svg-files': FilesSelectedDetail;
   'ui:font-files': FilesSelectedDetail;
   'ui:file-activate': { readonly id: string };

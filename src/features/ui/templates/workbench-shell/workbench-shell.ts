@@ -4,9 +4,23 @@ import '../../../../components';
 import '../../../../layout';
 import { mountStaticShadow, requiredElement, upgradeProperty } from '../../../../components/shadow';
 import type { DataListItem, ProgressBar } from '../../../../components';
-import type { WorkbenchFileView, WorkbenchViewModel } from '../../models';
+import type { ResolutionDefaultsView, WorkbenchFileView, WorkbenchViewModel } from '../../models';
 import type { WorkbenchUiState } from '../../ui-store';
-import { derivedLayoutIssues, fileMatchSummary, preflightLabel, processingLabel, queueErrorCount, queueWarningCount } from '../../presentation';
+import {
+  actionLabel,
+  actionMatchSummary,
+  derivedLayoutIssues,
+  effectiveChannel,
+  effectiveLocal,
+  formatPieceLabel,
+  preflightLabel,
+  processingLabel,
+  queueErrorCount,
+  queueWarningCount,
+  resolutionBlocker,
+  resolutionBlockerLabel,
+  resolutionOptionLabel,
+} from '../../presentation';
 import type { SourceQueueTemplate } from '../source-queue';
 import type { FontsTemplate } from '../fonts';
 import type { ReviewTemplate } from '../review';
@@ -16,23 +30,22 @@ import '../source-queue'; import '../fonts'; import '../review'; import '../pref
 
 export interface WorkbenchShellView { readonly model: WorkbenchViewModel; readonly uiState: WorkbenchUiState; }
 
-function queueSecondary(file: WorkbenchFileView): string {
+function queueSecondary(file: WorkbenchFileView, defaults: ResolutionDefaultsView | undefined): string {
   if (file.processingState === 'queued' || file.processingState === 'processing' || file.processingState === 'error') {
     return file.processingMessage ?? processingLabel(file.processingState);
   }
-  return [
-    file.processingMessage,
-    file.detectedLocal ?? 'Local sin detectar',
-    fileMatchSummary(file),
-    file.classification ?? 'Sin clasificar',
-    `Fuente: ${file.sourceFileName ?? 'no informada'}`,
-  ].filter((part): part is string => Boolean(part)).join(' · ');
+  const localOptions = file.localOptions ?? defaults?.localOptions ?? [];
+  const channelOptions = file.channelOptions ?? defaults?.channelOptions ?? [];
+  const local = resolutionOptionLabel(localOptions, effectiveLocal(file, defaults)) ?? 'Sin seleccionar';
+  const channel = resolutionOptionLabel(channelOptions, effectiveChannel(file, defaults)) ?? 'Sin seleccionar';
+  return `Acción: ${actionLabel(file)} · Formato/Pieza: ${formatPieceLabel(file)} · Local: ${local} · Canal: ${channel}`;
 }
 
-function queueMeta(file: WorkbenchFileView): string {
+function queueMeta(file: WorkbenchFileView, defaults: ResolutionDefaultsView | undefined): string {
   const processing = processingLabel(file.processingState);
   if (file.processingState === 'queued' || file.processingState === 'processing' || file.processingState === 'error') return processing;
-  return `${processing} · ${preflightLabel(file)} · ${queueWarningCount(file)}W/${queueErrorCount(file)}E`;
+  const blocker = resolutionBlocker(file, defaults);
+  return `Matching de acción: ${actionMatchSummary(file)} · Placeholder/precio: ${file.classification ?? 'Sin clasificar'} · ${resolutionBlockerLabel(blocker)} · ${preflightLabel(file)} · ${queueWarningCount(file)}W/${queueErrorCount(file)}E`;
 }
 
 export class WorkbenchShellTemplate extends HTMLElement {
@@ -62,13 +75,18 @@ export class WorkbenchShellTemplate extends HTMLElement {
     const items: readonly DataListItem[] = model.files.map((file) => ({
       id: file.id,
       primary: file.fileName,
-      secondary: queueSecondary(file),
-      meta: queueMeta(file),
+      secondary: queueSecondary(file, model.resolutionDefaults),
+      meta: queueMeta(file, model.resolutionDefaults),
       selected: selected?.id === file.id,
     }));
-    this.sourceQueue.view = { source: model.source, svgLoadStatus: model.svgLoadStatus, items };
+    this.sourceQueue.view = {
+      source: model.source,
+      ...(model.resolutionDefaults ? { resolutionDefaults: model.resolutionDefaults } : {}),
+      svgLoadStatus: model.svgLoadStatus,
+      items,
+    };
     this.fonts.fonts = model.fonts; this.fonts.loadStatus = model.fontLoadStatus;
-    this.review.file = selected; this.review.uiState = uiState; this.review.layoutIssues = selected ? derivedLayoutIssues(selected) : [];
+    this.review.file = selected; this.review.resolutionDefaults = model.resolutionDefaults; this.review.uiState = uiState; this.review.layoutIssues = selected ? derivedLayoutIssues(selected) : [];
     this.preflight.preflight = model.preflight; this.exportPanel.files = model.files;
     this.progress.hidden = !model.progress;
     if (model.progress) { this.progress.value = model.progress.value; this.progress.max = model.progress.max; this.progress.label = model.progress.label; }
