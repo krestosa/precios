@@ -102,7 +102,7 @@ function looksLikeName(value: SourceCell['value']): boolean {
   return Number.isNaN(Number(text.replace(',', '.')));
 }
 
-function identityBefore(snapshot: SourceSnapshot, pairStart: number, dataRows: readonly SourceRow[]): IdentityPair | null {
+function identityBefore(pairStart: number, dataRows: readonly SourceRow[]): IdentityPair | null {
   const evidenceRows = dataRows.slice(0, 12);
   for (let codeColumn = pairStart - 2; codeColumn >= 1; codeColumn -= 1) {
     const nameColumn = codeColumn + 1;
@@ -172,7 +172,7 @@ export function adaptCsvPricingCompatibility(snapshot: SourceSnapshot): CsvPrici
   const groupRow = detected.headerRow - 1;
   const pairs: PricePair[] = [];
   for (const start of detected.starts) {
-    const identity = identityBefore(snapshot, start, dataRows);
+    const identity = identityBefore(start, dataRows);
     if (identity === null) continue;
     const firstGroup = textValue(valueAt(snapshot, groupRow, start));
     const secondGroup = textValue(valueAt(snapshot, groupRow, start + 1));
