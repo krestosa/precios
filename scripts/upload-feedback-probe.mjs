@@ -25,15 +25,26 @@ function installGlobal(name, value, restore) {
   });
 }
 
-function shadowText(root) {
-  const parts = [];
-  const visit = (node) => {
-    if (node.nodeType === 3 && node.textContent) parts.push(node.textContent);
-    if (node instanceof node.ownerDocument.defaultView.Element && node.shadowRoot) visit(node.shadowRoot);
-    for (const child of node.childNodes) visit(child);
+function required(root, selector, label) {
+  const element = root?.querySelector(selector);
+  if (!element) throw new Error(`El probe no encontró ${label}.`);
+  return element;
+}
+
+function surface(workbench) {
+  const shell = required(workbench.shadowRoot, 'pw-workbench-shell', 'el shell del workbench');
+  const sourceQueue = required(shell.shadowRoot, 'pw-source-queue-template', 'la plantilla de fuente y cola');
+  const fonts = required(shell.shadowRoot, 'pw-fonts-template', 'la plantilla de fuentes');
+  return {
+    sourceQueue,
+    fonts,
+    sourceDropzone: required(sourceQueue.shadowRoot, '.source-dropzone', 'el dropzone de fuente'),
+    svgDropzone: required(sourceQueue.shadowRoot, '.svg-dropzone', 'el dropzone de SVG'),
+    sourceName: required(sourceQueue.shadowRoot, '.source-file strong', 'el nombre de fuente'),
+    sourceMessage: required(sourceQueue.shadowRoot, '.source-file .message', 'el mensaje de fuente'),
+    queue: required(sourceQueue.shadowRoot, '.queue', 'la cola de SVG'),
+    fontDropzone: required(fonts.shadowRoot, '.font-dropzone', 'el dropzone de fuentes'),
   };
-  visit(root);
-  return parts.join(' ').replace(/\s+/g, ' ').trim();
 }
 
 async function moduleEntry() {
@@ -77,42 +88,52 @@ async function main() {
     const workbench = window.document.querySelector('pw-price-workbench');
     assert(workbench, 'El workbench no se montó en el probe de feedback.');
     assert(window.preciosApp, 'La Control API no quedó disponible en el probe de feedback.');
+    const ui = surface(workbench);
 
-    const beforeSourceText = shadowText(workbench);
     const sourceFile = new NodeFile(['LOCAL;PRECIO\nEjemplo;1000\n'], 'precios-probe.csv', { type: 'text/csv' });
+    const sourceBefore = `${ui.sourceDropzone.status}|${ui.sourceName.textContent}|${ui.sourceMessage.textContent}`;
     const sourceTask = window.preciosApp.execute('source.load', { files: [sourceFile] });
-    const sourceImmediateText = shadowText(workbench);
+    const sourceImmediate = `${ui.sourceDropzone.status}|${ui.sourceName.textContent}|${ui.sourceMessage.textContent}`;
     assert(workbench.model.source.status === 'loading', 'SOURCE no publicó loading en el mismo ciclo de interacción.');
     assert(workbench.model.source.fileName === sourceFile.name, 'SOURCE no publicó el nombre del archivo inmediatamente.');
     assert(workbench.model.source.message?.includes('Procesando'), 'SOURCE no publicó un mensaje de procesamiento inmediato.');
-    assert(sourceImmediateText !== beforeSourceText && sourceImmediateText.includes(sourceFile.name), 'SOURCE no produjo un cambio visual inmediato en el DOM.');
+    assert(ui.sourceDropzone.status === 'loading', 'SOURCE no proyectó loading al dropzone real.');
+    assert(ui.sourceName.textContent === sourceFile.name, 'SOURCE no proyectó el nombre al DOM real.');
+    assert(ui.sourceMessage.textContent.includes('Procesando'), 'SOURCE no proyectó el mensaje de procesamiento al DOM real.');
+    assert(sourceImmediate !== sourceBefore, 'SOURCE dejó la superficie visual idéntica después de seleccionar el archivo.');
     await sourceTask;
-    const sourceFinalText = shadowText(workbench);
+    const sourceFinal = `${ui.sourceDropzone.status}|${ui.sourceName.textContent}|${ui.sourceMessage.textContent}`;
     assert(workbench.model.source.status === 'ready' || workbench.model.source.status === 'error', 'SOURCE no alcanzó un estado final observable.');
     assert(workbench.model.source.status !== 'loading', 'SOURCE dejó loading activo después de finalizar.');
-    assert(sourceFinalText !== sourceImmediateText, 'SOURCE no produjo una transición visual final.');
+    assert(ui.sourceDropzone.status !== 'loading', 'SOURCE dejó el dropzone visual en loading después de finalizar.');
+    assert(sourceFinal !== sourceImmediate, 'SOURCE no produjo una transición visual final.');
 
-    const beforeSvgText = shadowText(workbench);
     const svgFile = new NodeFile([
       '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 40"><text x="4" y="16">$$$$</text><text x="4" y="34">@@@@</text></svg>',
     ], 'local-probe.svg', { type: 'image/svg+xml' });
+    const svgBeforeCount = ui.queue.items.length;
     const svgTask = window.preciosApp.execute('svg.load', { files: [svgFile] });
-    const svgImmediateText = shadowText(workbench);
+    const immediateItem = ui.queue.items.find((item) => item.primary === svgFile.name);
     assert(workbench.model.svgLoadStatus === 'loading', 'SVG no publicó loading en el mismo ciclo de interacción.');
     assert(workbench.model.files.some((file) => file.fileName === svgFile.name), 'SVG no apareció inmediatamente en la cola observable.');
-    assert(svgImmediateText !== beforeSvgText && svgImmediateText.includes(svgFile.name), 'SVG no produjo un cambio visual inmediato en el DOM.');
+    assert(ui.svgDropzone.status === 'loading', 'SVG no proyectó loading al dropzone real.');
+    assert(ui.queue.items.length > svgBeforeCount && immediateItem, 'SVG no agregó inmediatamente una fila a la cola visual.');
+    assert(immediateItem.secondary?.includes('Matching pendiente'), 'SVG no proyectó un estado pendiente observable en la fila inmediata.');
     await svgTask;
-    const svgFinalText = shadowText(workbench);
+    const finalItem = ui.queue.items.find((item) => item.primary === svgFile.name);
     assert(workbench.model.svgLoadStatus === 'ready' || workbench.model.svgLoadStatus === 'error', 'SVG no alcanzó un estado final observable.');
     assert(workbench.model.svgLoadStatus !== 'loading', 'SVG dejó loading activo después de finalizar.');
-    assert(svgFinalText !== svgImmediateText, 'SVG no produjo una transición visual final.');
+    assert(ui.svgDropzone.status !== 'loading', 'SVG dejó el dropzone visual en loading después de finalizar.');
+    assert(finalItem && (finalItem.secondary !== immediateItem.secondary || finalItem.meta !== immediateItem.meta), 'SVG no produjo una transición visual final en su fila.');
 
     const fontFile = new NodeFile(['fuente-probe-invalida'], 'fuente-probe.ttf', { type: 'font/ttf' });
     const fontTask = window.preciosApp.execute('font.load', { files: [fontFile] });
     assert(workbench.model.fontLoadStatus === 'loading', 'FONT no publicó loading en el mismo ciclo de interacción.');
+    assert(ui.fontDropzone.status === 'loading', 'FONT no proyectó loading al dropzone real.');
     await fontTask;
     assert(workbench.model.fontLoadStatus === 'ready' || workbench.model.fontLoadStatus === 'error', 'FONT no alcanzó un estado final observable.');
     assert(workbench.model.fontLoadStatus !== 'loading', 'FONT dejó loading activo después de finalizar.');
+    assert(ui.fontDropzone.status !== 'loading', 'FONT dejó el dropzone visual en loading después de finalizar.');
 
     console.log(JSON.stringify({
       probe: 'upload-feedback',
