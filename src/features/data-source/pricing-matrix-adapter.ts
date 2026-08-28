@@ -633,9 +633,8 @@ export function detectPricingMatrixSchema(
   let eminentGroups: readonly PricingMatrixHeaderGroup[] = [];
 
   if (normalIdentity !== null) {
-    const normalEnd = eminentIdentity?.codeColumn !== undefined
-      ? eminentIdentity.codeColumn - 1
-      : bounds.maxColumnValue;
+    const secondIdentity = identities[1] ?? null;
+    const normalEnd = secondIdentity === null ? bounds.maxColumnValue : secondIdentity.codeColumn - 1;
     const detectedNormal = detectGroups(
       snapshot,
       'NORMAL',
