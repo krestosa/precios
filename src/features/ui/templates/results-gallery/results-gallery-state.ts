@@ -11,7 +11,7 @@ export interface GalleryItemView {
   readonly targetLabel: string;
   readonly statusLabel: string;
   readonly statusKind: GalleryStatusKind;
-  readonly svg?: string;
+  readonly svg: string | undefined;
   readonly exportable: boolean;
   readonly blocked: boolean;
 }

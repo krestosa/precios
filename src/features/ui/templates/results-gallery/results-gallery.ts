@@ -273,8 +273,8 @@ export class ResultsGalleryTemplate extends HTMLElement {
     if (event.key !== 'Tab') return;
     const focusable = [...this.lightbox.querySelectorAll<HTMLElement>('button:not([disabled]), [tabindex="0"]')].filter((node) => !node.hidden);
     if (focusable.length === 0) return;
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
+    const first = focusable[0]!;
+    const last = focusable[focusable.length - 1]!;
     const active = this.shadowRoot?.activeElement;
     if (event.shiftKey && active === first) {
       event.preventDefault();
