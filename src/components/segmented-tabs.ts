@@ -30,9 +30,25 @@ export class SegmentedTabs extends LitElement {
     this.dispatchEvent(new CustomEvent<TabChangeDetail>('tab-change', { detail: { id }, bubbles: true, composed: true }));
   }
 
+  private onKeyDown(event: KeyboardEvent, index: number) {
+    if (this.items.length === 0) return;
+    let nextIndex = index;
+    if (event.key === 'ArrowRight') nextIndex = (index + 1) % this.items.length;
+    else if (event.key === 'ArrowLeft') nextIndex = (index - 1 + this.items.length) % this.items.length;
+    else if (event.key === 'Home') nextIndex = 0;
+    else if (event.key === 'End') nextIndex = this.items.length - 1;
+    else return;
+
+    const nextItem = this.items[nextIndex];
+    if (!nextItem) return;
+    event.preventDefault();
+    this.select(nextItem.id);
+    queueMicrotask(() => this.renderRoot.querySelectorAll<HTMLButtonElement>('[role="tab"]')[nextIndex]?.focus());
+  }
+
   override render() {
     return html`<div role="tablist" aria-label=${this.label}>
-      ${this.items.map((item) => html`<button type="button" role="tab" aria-selected=${String(item.id === this.selected)} tabindex=${item.id === this.selected ? '0' : '-1'} @click=${() => this.select(item.id)}>${item.label}</button>`)}
+      ${this.items.map((item, index) => html`<button type="button" role="tab" aria-selected=${String(item.id === this.selected)} tabindex=${item.id === this.selected ? '0' : '-1'} @keydown=${(event: KeyboardEvent) => this.onKeyDown(event, index)} @click=${() => this.select(item.id)}>${item.label}</button>`)}
     </div>`;
   }
 }

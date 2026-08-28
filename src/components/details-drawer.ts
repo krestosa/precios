@@ -1,4 +1,4 @@
-import { LitElement, css, html } from 'lit';
+import { LitElement, css, html, type PropertyValues } from 'lit';
 
 export class DetailsDrawer extends LitElement {
   static override properties = {
@@ -15,7 +15,7 @@ export class DetailsDrawer extends LitElement {
     header { display: flex; justify-content: space-between; gap: 1rem; align-items: center; margin-bottom: 1rem; }
     h2 { margin: 0; font-size: var(--pw-font-size-xl, 1.25rem); }
     button { border: 1px solid var(--pw-color-border, #d4dae0); border-radius: var(--pw-radius-sm, .375rem); background: var(--pw-color-surface, #fff); padding: .4rem .6rem; cursor: pointer; }
-    button:focus-visible { outline: 3px solid color-mix(in srgb, var(--pw-color-accent, #1859c9) 30%, transparent); outline-offset: 2px; }
+    button:focus-visible, aside:focus-visible { outline: 3px solid color-mix(in srgb, var(--pw-color-accent, #1859c9) 30%, transparent); outline-offset: 2px; }
     @media (prefers-reduced-motion: reduce) { .backdrop, aside { transition: none; } }
   `;
 
@@ -26,9 +26,20 @@ export class DetailsDrawer extends LitElement {
     this.dispatchEvent(new CustomEvent('drawer-close', { bubbles: true, composed: true }));
   }
 
+  private onKeyDown(event: KeyboardEvent) {
+    if (event.key !== 'Escape') return;
+    event.preventDefault();
+    this.close();
+  }
+
+  protected override updated(changed: PropertyValues<this>): void {
+    if (!changed.has('open') || !this.open) return;
+    queueMicrotask(() => this.renderRoot.querySelector<HTMLElement>('aside')?.focus());
+  }
+
   override render() {
     return html`<div class="backdrop" @click=${this.close} aria-hidden="true"></div>
-      <aside role="dialog" aria-modal="false" aria-label=${this.heading} aria-hidden=${String(!this.open)}>
+      <aside role="dialog" aria-modal="false" aria-label=${this.heading} aria-hidden=${String(!this.open)} tabindex="-1" @keydown=${this.onKeyDown}>
         <header><h2>${this.heading}</h2><button type="button" @click=${this.close} aria-label="Cerrar detalles">Cerrar</button></header>
         <slot></slot>
       </aside>`;
