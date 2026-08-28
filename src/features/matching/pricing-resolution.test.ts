@@ -110,4 +110,17 @@ describe('matcher data-driven de acciones SVG', () => {
     expect(context.action.selectedHypothesisId).toBe('local-prefix:palermo');
     expect(context.suggestedLocal?.label).toBe('Palermo');
   });
+
+  it('resuelve una acción inédita construida en runtime sin catálogo productivo', () => {
+    const generatedAction = ['Lanzamiento', 'Runtime', String(7000 + 29)].join(' ');
+    const context = prepareSvgPricingContext(
+      `${generatedAction} Feed 2.svg`,
+      model([generatedAction], ['Recova']),
+    );
+
+    expect(context.identity.format).toBe('feed');
+    expect(context.identity.pieceIndex).toBe(2);
+    expect(selectedAction(context)).toBe(generatedAction);
+    expect(context.action.result.status).toBe('matched');
+  });
 });
