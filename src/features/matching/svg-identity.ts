@@ -3,6 +3,7 @@ import { canonicalTokens, normalizeCanonicalText } from '../../utils/normalize/t
 import { matchName, type MatchTarget, type NameMatcherOptions } from './name-matcher';
 
 const NUMBER_WORDS: Readonly<Record<string, string>> = {
+  cero: '0',
   un: '1',
   uno: '1',
   una: '1',
@@ -66,7 +67,6 @@ export interface SvgIdentityLocalCandidate extends SvgLocalHint {
 
 export interface SvgIdentityParseOptions {
   readonly formats?: readonly SvgFormatDefinition[];
-  readonly localHints?: readonly SvgLocalHintTarget[];
 }
 
 export interface SvgIdentity {
@@ -178,10 +178,13 @@ function tokensEqualAt(
   return target.every((token, index) => source[start + index] === token);
 }
 
-function localCandidates(
-  tokens: readonly string[],
+export function findSvgLocalCandidates(
+  identity: SvgIdentity,
   localHints: readonly SvgLocalHintTarget[],
 ): readonly SvgIdentityLocalCandidate[] {
+  if (identity.actionName === null) return [];
+
+  const tokens = displayTokens(identity.actionName);
   const canonicalSource = tokens.map(canonicalToken);
   const candidates: SvgIdentityLocalCandidate[] = [];
 
@@ -206,26 +209,44 @@ function localCandidates(
     }
   }
 
-  if (candidates.length === 0) return [];
-  const longest = Math.max(...candidates.map((candidate) => candidate.tokenCount));
-  return candidates.filter((candidate) => candidate.tokenCount === longest);
+  return candidates;
 }
 
-function selectLocalCandidate(
-  candidates: readonly SvgIdentityLocalCandidate[],
-): SvgIdentityLocalCandidate | null {
-  if (candidates.length !== 1) return null;
-  return candidates[0] ?? null;
-}
-
-function removeLocalTokens(
-  tokens: readonly string[],
-  local: SvgIdentityLocalCandidate | null,
-): readonly string[] {
-  if (local === null) return tokens;
-  return local.position === 'prefix'
+export function actionNameWithoutLocal(
+  identity: SvgIdentity,
+  local: SvgIdentityLocalCandidate,
+): string | null {
+  if (identity.actionName === null) return null;
+  const tokens = displayTokens(identity.actionName);
+  const remaining = local.position === 'prefix'
     ? tokens.slice(local.tokenCount)
     : tokens.slice(0, tokens.length - local.tokenCount);
+  return remaining.length === 0 ? null : remaining.join(' ');
+}
+
+export function reinterpretSvgIdentity(
+  identity: SvgIdentity,
+  actionName: string | null,
+  localHint: SvgIdentityLocalCandidate | null,
+  localCandidates: readonly SvgIdentityLocalCandidate[] = localHint === null ? [] : [localHint],
+): SvgIdentity {
+  const actionCanonical = actionName === null ? null : normalizeActionName(actionName);
+  return {
+    ...identity,
+    status: actionCanonical === null || actionCanonical.length === 0 ? 'unknown' : 'parsed',
+    actionName,
+    actionCanonical,
+    localHint: localHint === null
+      ? null
+      : {
+          ...(localHint.id === undefined ? {} : { id: localHint.id }),
+          label: localHint.label,
+          raw: localHint.raw,
+          canonical: localHint.canonical,
+          position: localHint.position,
+        },
+    localCandidates,
+  };
 }
 
 export function parseSvgIdentity(
@@ -237,16 +258,10 @@ export function parseSvgIdentity(
   const tokens = displayTokens(stem);
   const detectedFormat = detectFormat(tokens, options.formats ?? DEFAULT_FORMATS);
 
-  // El índice sólo se separa cuando pertenece a un sufijo de formato reconocido.
-  const actionAndLocalTokens = detectedFormat === null
+  // El parser sólo separa estructura inequívoca. Action/local se decide después contra datos reales.
+  const actionTokens = detectedFormat === null
     ? tokens
     : tokens.slice(0, detectedFormat.formatTokenIndex);
-  const candidates = localCandidates(actionAndLocalTokens, options.localHints ?? []);
-  const selectedLocal = selectLocalCandidate(candidates);
-  const ambiguousLocal = candidates.length > 1;
-  const actionTokens = ambiguousLocal
-    ? []
-    : removeLocalTokens(actionAndLocalTokens, selectedLocal);
   const actionName = actionTokens.length === 0 ? null : actionTokens.join(' ');
   const actionCanonical = actionName === null ? null : normalizeActionName(actionName);
 
@@ -259,16 +274,8 @@ export function parseSvgIdentity(
     actionCanonical,
     format: detectedFormat?.format ?? null,
     pieceIndex: detectedFormat?.pieceIndex ?? null,
-    localHint: selectedLocal === null
-      ? null
-      : {
-          ...(selectedLocal.id === undefined ? {} : { id: selectedLocal.id }),
-          label: selectedLocal.label,
-          raw: selectedLocal.raw,
-          canonical: selectedLocal.canonical,
-          position: selectedLocal.position,
-        },
-    localCandidates: candidates,
+    localHint: null,
+    localCandidates: [],
   };
 }
 

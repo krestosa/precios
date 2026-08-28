@@ -1,10 +1,19 @@
 import type { Diagnostic } from '../../domain/contracts/core';
-import type { MatchResult } from '../../domain/contracts/matching';
+import type { MatchCandidate, MatchResult } from '../../domain/contracts/matching';
 import type { Channel, PriceField, ProductRef } from '../../domain/contracts/pricing';
 import type { PriceSlot, PriceTier } from '../../domain/pricing/slots';
 import { normalizeCanonicalText } from '../../utils/normalize/text';
 import type { NameMatcherOptions } from './name-matcher';
-import { matchAction, parseSvgIdentity, type SvgFormatDefinition, type SvgIdentity } from './svg-identity';
+import {
+  actionNameWithoutLocal,
+  findSvgLocalCandidates,
+  matchAction,
+  parseSvgIdentity,
+  reinterpretSvgIdentity,
+  type SvgFormatDefinition,
+  type SvgIdentity,
+  type SvgIdentityLocalCandidate,
+} from './svg-identity';
 
 export type PricingResolutionDiagnosticCode =
   | 'PRICING_ACTION_MATCH_REQUIRED'
@@ -65,10 +74,24 @@ export interface PricingLocalOption {
   readonly channels: readonly PricingChannelOption[];
 }
 
+export type PricingActionHypothesisKind = 'action-only' | 'local-prefix' | 'local-suffix';
+
+export interface PricingActionHypothesis {
+  readonly id: string;
+  readonly kind: PricingActionHypothesisKind;
+  readonly identity: SvgIdentity;
+  readonly local: PricingLocalOption | null;
+  readonly result: MatchResult;
+  readonly selectedRow: PricingMatrixProductRowView | null;
+  readonly evidenceStrength: number;
+}
+
 export interface PricingActionMatch {
   readonly identity: SvgIdentity;
   readonly result: MatchResult;
   readonly selectedRow: PricingMatrixProductRowView | null;
+  readonly hypotheses: readonly PricingActionHypothesis[];
+  readonly selectedHypothesisId: string | null;
 }
 
 export interface SvgPricingContext {
@@ -76,6 +99,7 @@ export interface SvgPricingContext {
   readonly action: PricingActionMatch;
   readonly localOptions: readonly PricingLocalOption[];
   readonly suggestedLocal: PricingLocalOption | null;
+  readonly actionFamily: string | null;
 }
 
 export interface PrepareSvgPricingContextOptions {
@@ -222,22 +246,247 @@ export function listPricingLocalOptions(model: PricingMatrixModel): readonly Pri
     });
 }
 
+function actionTargets(model: PricingMatrixModel): {
+  readonly rows: readonly PricingMatrixProductRowView[];
+  readonly targets: readonly { readonly id: string; readonly label: string }[];
+} {
+  const rows = productRows(model);
+  return {
+    rows,
+    targets: rows.map((row) => ({
+      id: row.sourceRecordId,
+      label: row.product!.nameRaw,
+    })),
+  };
+}
+
+function selectedRowForResult(
+  result: MatchResult,
+  rows: readonly PricingMatrixProductRowView[],
+): PricingMatrixProductRowView | null {
+  if (result.status !== 'matched') return null;
+  return rows.find((row) => row.sourceRecordId === result.selected.id) ?? null;
+}
+
+function matchEvidenceStrength(result: MatchResult): number {
+  if (result.status !== 'matched') return 0;
+  switch (result.method) {
+    case 'manual':
+      return 4;
+    case 'canonical-exact':
+      return 3;
+    case 'exact-tokens':
+      return 2;
+    case 'unambiguous-partial':
+      return 1;
+  }
+}
+
 export function matchPricingAction(
   identity: SvgIdentity,
   model: PricingMatrixModel,
   options: NameMatcherOptions = {},
 ): PricingActionMatch {
-  const rows = productRows(model);
-  const targets = rows.map((row) => ({
-    id: row.sourceRecordId,
-    label: row.product!.nameRaw,
-  }));
+  const { rows, targets } = actionTargets(model);
   const result = matchAction(identity, targets, options);
-  const selectedRow = result.status === 'matched'
-    ? rows.find((row) => row.sourceRecordId === result.selected.id) ?? null
-    : null;
+  return {
+    identity,
+    result,
+    selectedRow: selectedRowForResult(result, rows),
+    hypotheses: [],
+    selectedHypothesisId: null,
+  };
+}
 
-  return { identity, result, selectedRow };
+function localCandidateKey(candidate: SvgIdentityLocalCandidate): string {
+  return `${candidate.id ?? candidate.canonical}\u0000${candidate.position}`;
+}
+
+function hypothesisId(kind: PricingActionHypothesisKind, local: PricingLocalOption | null): string {
+  if (local === null) return 'action-only';
+  return `${kind}:${local.id}`;
+}
+
+function buildHypotheses(
+  structuralIdentity: SvgIdentity,
+  model: PricingMatrixModel,
+  localOptions: readonly PricingLocalOption[],
+  options: NameMatcherOptions,
+): readonly PricingActionHypothesis[] {
+  const { rows, targets } = actionTargets(model);
+  const hypotheses: PricingActionHypothesis[] = [];
+
+  const evaluate = (
+    kind: PricingActionHypothesisKind,
+    identity: SvgIdentity,
+    local: PricingLocalOption | null,
+  ): void => {
+    const result = matchAction(identity, targets, options);
+    hypotheses.push({
+      id: hypothesisId(kind, local),
+      kind,
+      identity,
+      local,
+      result,
+      selectedRow: selectedRowForResult(result, rows),
+      evidenceStrength: matchEvidenceStrength(result),
+    });
+  };
+
+  // A siempre compite: todo el texto restante se interpreta como acción.
+  evaluate('action-only', structuralIdentity, null);
+
+  const localById = new Map(localOptions.map((local) => [local.id, local] as const));
+  const candidates = findSvgLocalCandidates(
+    structuralIdentity,
+    localOptions.map((local) => ({ id: local.id, label: local.label })),
+  );
+  const seen = new Set<string>();
+
+  for (const candidate of candidates) {
+    const key = localCandidateKey(candidate);
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    const local = candidate.id === undefined ? null : localById.get(candidate.id) ?? null;
+    if (local === null) continue;
+    const actionName = actionNameWithoutLocal(structuralIdentity, candidate);
+    if (actionName === null) continue;
+    const identity = reinterpretSvgIdentity(structuralIdentity, actionName, candidate);
+    evaluate(candidate.position === 'prefix' ? 'local-prefix' : 'local-suffix', identity, local);
+  }
+
+  return hypotheses;
+}
+
+function uniqueCandidates(candidates: readonly MatchCandidate[]): readonly MatchCandidate[] {
+  const byId = new Map<string, MatchCandidate>();
+  for (const candidate of candidates) {
+    const current = byId.get(candidate.id);
+    if (current === undefined || candidate.confidence > current.confidence) {
+      byId.set(candidate.id, candidate);
+    }
+  }
+  return [...byId.values()].sort((left, right) => right.confidence - left.confidence || left.label.localeCompare(right.label));
+}
+
+function hypothesisInterpretationKey(hypothesis: PricingActionHypothesis): string {
+  if (hypothesis.result.status !== 'matched') return hypothesis.id;
+  const localId = hypothesis.local?.id ?? '';
+  const position = hypothesis.identity.localHint?.position ?? '';
+  return `${hypothesis.result.selected.id}\u0000${localId}\u0000${position}`;
+}
+
+function localCandidatesFromHypotheses(
+  hypotheses: readonly PricingActionHypothesis[],
+): readonly SvgIdentityLocalCandidate[] {
+  const byKey = new Map<string, SvgIdentityLocalCandidate>();
+  for (const hypothesis of hypotheses) {
+    for (const candidate of hypothesis.identity.localCandidates) {
+      byKey.set(localCandidateKey(candidate), candidate);
+    }
+  }
+  return [...byKey.values()];
+}
+
+function ambiguousResultFromHypotheses(
+  hypotheses: readonly PricingActionHypothesis[],
+): MatchResult {
+  const candidates = uniqueCandidates(hypotheses.flatMap((hypothesis) => {
+    if (hypothesis.result.status === 'matched') return [hypothesis.result.selected];
+    return [...hypothesis.result.candidates];
+  }));
+  return { status: 'ambiguous', candidates, requiresHuman: true };
+}
+
+function resolveHypotheses(
+  structuralIdentity: SvgIdentity,
+  hypotheses: readonly PricingActionHypothesis[],
+): PricingActionMatch {
+  const matched = hypotheses.filter((hypothesis) => hypothesis.result.status === 'matched');
+  if (matched.length > 0) {
+    const strongest = Math.max(...matched.map((hypothesis) => hypothesis.evidenceStrength));
+    const strongestHypotheses = matched.filter((hypothesis) => hypothesis.evidenceStrength === strongest);
+    const interpretations = new Map<string, PricingActionHypothesis>();
+    for (const hypothesis of strongestHypotheses) {
+      interpretations.set(hypothesisInterpretationKey(hypothesis), hypothesis);
+    }
+
+    if (interpretations.size === 1) {
+      const selected = [...interpretations.values()][0]!;
+      return {
+        identity: selected.identity,
+        result: selected.result,
+        selectedRow: selected.selectedRow,
+        hypotheses,
+        selectedHypothesisId: selected.id,
+      };
+    }
+
+    const ambiguousHypotheses = [...interpretations.values()];
+    const identity = reinterpretSvgIdentity(
+      structuralIdentity,
+      structuralIdentity.actionName,
+      null,
+      localCandidatesFromHypotheses(ambiguousHypotheses),
+    );
+    return {
+      identity,
+      result: ambiguousResultFromHypotheses(ambiguousHypotheses),
+      selectedRow: null,
+      hypotheses,
+      selectedHypothesisId: null,
+    };
+  }
+
+  const internallyAmbiguous = hypotheses.filter((hypothesis) => hypothesis.result.status === 'ambiguous');
+  if (internallyAmbiguous.length > 0) {
+    const identity = reinterpretSvgIdentity(
+      structuralIdentity,
+      structuralIdentity.actionName,
+      null,
+      localCandidatesFromHypotheses(internallyAmbiguous),
+    );
+    return {
+      identity,
+      result: ambiguousResultFromHypotheses(internallyAmbiguous),
+      selectedRow: null,
+      hypotheses,
+      selectedHypothesisId: null,
+    };
+  }
+
+  const suggestions = hypotheses
+    .filter((hypothesis) => hypothesis.result.status === 'suggestion')
+    .sort((left, right) => {
+      const leftConfidence = left.result.status === 'suggestion' ? left.result.confidence : 0;
+      const rightConfidence = right.result.status === 'suggestion' ? right.result.confidence : 0;
+      return rightConfidence - leftConfidence;
+    });
+  const bestSuggestion = suggestions[0];
+  if (bestSuggestion !== undefined && bestSuggestion.result.status === 'suggestion') {
+    return {
+      identity: structuralIdentity,
+      result: {
+        ...bestSuggestion.result,
+        candidates: uniqueCandidates(suggestions.flatMap((hypothesis) => [...hypothesis.result.candidates])),
+      },
+      selectedRow: null,
+      hypotheses,
+      selectedHypothesisId: null,
+    };
+  }
+
+  return {
+    identity: structuralIdentity,
+    result: {
+      status: 'unmatched',
+      candidates: uniqueCandidates(hypotheses.flatMap((hypothesis) => [...hypothesis.result.candidates])),
+    },
+    selectedRow: null,
+    hypotheses,
+    selectedHypothesisId: null,
+  };
 }
 
 function suggestedLocalForIdentity(
@@ -248,43 +497,26 @@ function suggestedLocalForIdentity(
   return localOptions.find((option) => option.id === identity.localHint?.id) ?? null;
 }
 
-function shouldPreferLocalInterpretation(
-  direct: PricingActionMatch,
-  withLocal: PricingActionMatch,
-): boolean {
-  if (withLocal.identity.localCandidates.length > 1) return true;
-  if (withLocal.identity.localHint === null) return false;
-
-  if (withLocal.result.status === 'matched') {
-    return direct.result.status !== 'matched' || withLocal.result.confidence > direct.result.confidence;
-  }
-
-  return direct.result.status !== 'matched' && withLocal.result.status !== 'unmatched';
-}
-
 export function prepareSvgPricingContext(
   filename: string,
   model: PricingMatrixModel,
   options: PrepareSvgPricingContextOptions = {},
 ): SvgPricingContext {
   const localOptions = listPricingLocalOptions(model);
-  const formatOptions = options.formats === undefined ? {} : { formats: options.formats };
-  const directIdentity = parseSvgIdentity(filename, formatOptions);
-  const directAction = matchPricingAction(directIdentity, model, options.matcher);
-  const identityWithLocal = parseSvgIdentity(filename, {
-    ...formatOptions,
-    localHints: localOptions.map((local) => ({ id: local.id, label: local.label })),
-  });
-  const actionWithLocal = matchPricingAction(identityWithLocal, model, options.matcher);
-  const useLocalInterpretation = shouldPreferLocalInterpretation(directAction, actionWithLocal);
-  const identity = useLocalInterpretation ? identityWithLocal : directIdentity;
-  const action = useLocalInterpretation ? actionWithLocal : directAction;
+  const structuralIdentity = parseSvgIdentity(
+    filename,
+    options.formats === undefined ? {} : { formats: options.formats },
+  );
+  const hypotheses = buildHypotheses(structuralIdentity, model, localOptions, options.matcher ?? {});
+  const action = resolveHypotheses(structuralIdentity, hypotheses);
 
   return {
-    identity,
+    identity: action.identity,
     action,
     localOptions,
-    suggestedLocal: suggestedLocalForIdentity(identity, localOptions),
+    suggestedLocal: suggestedLocalForIdentity(action.identity, localOptions),
+    // El modelo actual no conserva una relación fiable producto -> familia/modalidad.
+    actionFamily: null,
   };
 }
 
