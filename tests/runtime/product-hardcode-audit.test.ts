@@ -7,6 +7,12 @@ const SRC_ROOT = fileURLToPath(new URL('../../src/', import.meta.url));
 const PRODUCT_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.mjs', '.css', '.html']);
 const FORBIDDEN_PRODUCT_LITERALS = [
   'Tres Tiempos',
+  'Campaña Todos Incompletos 2031',
+  'Campaña General Inédita',
+  'Especial Palermo Nocturno',
+  'LOCAL FUTURO 2030',
+  'PALERMO',
+  'RECOVA',
   'Story 1',
   'Story 7',
   'Feed 1',
@@ -31,7 +37,7 @@ async function productFiles(directory: string): Promise<readonly string[]> {
 }
 
 describe('W11 hardcode audit productivo', () => {
-  it('mantiene nombres de acción/campaña e índices observados fuera de src productivo', async () => {
+  it('mantiene nombres de acción/campaña, taxonomías e índices observados fuera de src productivo', async () => {
     const violations: string[] = [];
     for (const file of await productFiles(SRC_ROOT)) {
       const content = await readFile(file, 'utf8');
