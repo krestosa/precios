@@ -1,5 +1,11 @@
 import type { FileTrace, FontRecord, PriceField, PriceSourceKind, SourceLoc } from '../domain/contracts';
 import type { FontRegistrationResult, FontResolution } from '../features/font-resolver';
+import {
+  actionNameWithoutLocal,
+  findSvgLocalCandidates,
+  normalizeActionName,
+  parseSvgIdentity,
+} from '../features/matching';
 import { buildSvgPreviewModel } from '../features/svg-engine';
 import type { FontView, PreviewView, ProcessingState, WorkbenchFileView } from '../features/ui/models';
 import type {
@@ -8,7 +14,6 @@ import type {
   RuntimePriceAlternative,
   RuntimeSource,
 } from './types';
-import { fileStem } from './types';
 
 function diagnosticMessage(code: string, message: string): string {
   return `${code}: ${message}`;
@@ -23,6 +28,40 @@ function traceSources(fields: readonly (PriceField | undefined)[]): FileTrace['s
     bySource.set(field.provenance.sourceId, current);
   }
   return [...bySource.entries()].map(([id, value]) => ({ id, kind: value.kind, locations: value.locations }));
+}
+
+interface ResolvedLocalHypothesis {
+  readonly raw: string;
+  readonly canonical: string;
+  readonly position: 'prefix' | 'suffix';
+}
+
+function resolvedLocalHypothesis(
+  file: RuntimeFile,
+  resolved: RuntimeFile['priceAlternatives'][number] | undefined,
+): ResolvedLocalHypothesis | null {
+  if (file.match.status !== 'matched' || resolved === undefined) return null;
+  const groupRaw = resolved.record.scope.groupRaw?.trim();
+  if (!groupRaw) return null;
+
+  const identity = parseSvgIdentity(file.fileName);
+  if (identity.actionName === null) return null;
+  const selectedAction = file.match.selected.label;
+
+  // Action-only tiene precedencia: un token que coincide con un local real puede formar parte legítima de la acción.
+  if (normalizeActionName(identity.actionName) === normalizeActionName(selectedAction)) return null;
+
+  const candidates = findSvgLocalCandidates(identity, [{ label: groupRaw }]);
+  for (const candidate of candidates) {
+    const actionName = actionNameWithoutLocal(identity, candidate);
+    if (actionName === null || normalizeActionName(actionName) !== normalizeActionName(selectedAction)) continue;
+    return {
+      raw: candidate.raw,
+      canonical: candidate.canonical,
+      position: candidate.position,
+    };
+  }
+  return null;
 }
 
 function overlayMarkup(originalSvg: string, resultSvg: string): string {
@@ -54,16 +93,13 @@ function previewView(file: RuntimeFile): PreviewView {
 }
 
 export function fileTrace(file: RuntimeFile): FileTrace {
-  const selected = file.match.status === 'matched' ? file.match.selected : undefined;
   const resolved = file.priceAlternatives.length === 1 ? file.priceAlternatives[0] : undefined;
+  const local = resolvedLocalHypothesis(file, resolved);
   const normal = resolved?.record.prices.normal;
   const eminent = resolved?.record.prices.eminent;
   return {
     sourceSvg: { id: file.id, fileName: file.fileName },
-    local: {
-      raw: fileStem(file.fileName),
-      ...(selected?.canonical === undefined ? {} : { canonical: selected.canonical }),
-    },
+    local: local === null ? {} : { raw: local.raw, canonical: local.canonical },
     match: file.match.status === 'matched'
       ? {
           method: file.match.method,
@@ -91,6 +127,7 @@ function completedProcessingState(warnings: readonly string[], errors: readonly 
 
 export function fileView(file: RuntimeFile, source: RuntimeSource | null): WorkbenchFileView {
   const resolved = source !== null && file.priceAlternatives.length === 1 ? file.priceAlternatives[0] : undefined;
+  const local = resolvedLocalHypothesis(file, resolved);
   const warnings = [
     ...file.analysis.diagnostics
       .filter((item) => !item.code.includes('ambiguous'))
@@ -102,7 +139,7 @@ export function fileView(file: RuntimeFile, source: RuntimeSource | null): Workb
     id: file.id,
     fileName: file.fileName,
     processingState: completedProcessingState(warnings, errors),
-    detectedLocal: fileStem(file.fileName),
+    ...(local === null ? {} : { detectedLocal: local.raw }),
     classification: file.analysis.classification,
     ...(source === null
       ? {}
@@ -168,7 +205,6 @@ export function pendingSvgView(id: string, file: File, source: RuntimeSource | n
     fileName: file.name,
     processingState: 'processing',
     processingMessage: 'Analizando archivo SVG.',
-    detectedLocal: fileStem(file.name),
     ...(source === null ? {} : { sourceFileName: source.fileName }),
     exportable: false,
   };
