@@ -14,6 +14,7 @@ export const EXPECTED_COMMANDS = [
   'state.get',
   'flow.reset',
   'source.load',
+  'source.selectSheet',
   'svg.load',
   'font.load',
   'file.select',
@@ -179,7 +180,7 @@ export function findRecordByStringField(
     }
     return null;
   }
-  if (!isRecord(root)) return null;
+  if (!isRecord(root)) return false;
   if (root[key] === expected) return root;
   for (const entry of Object.values(root)) {
     const found = findRecordByStringField(entry, key, expected);
