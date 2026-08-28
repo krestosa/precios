@@ -20,6 +20,10 @@ const REAL_FILENAMES = [
 
 const SYNTHETIC_ACTION = 'Órbita Quásar 8137';
 const SYNTHETIC_FILENAME = `${SYNTHETIC_ACTION} Story 1.svg`;
+const FORMAT_LOCAL_TOKEN_ACTION = 'LOCAL TEST Story Aurora 9201';
+const FORMAT_LOCAL_TOKEN_FILENAME = `${FORMAT_LOCAL_TOKEN_ACTION} Feed 12.svg`;
+const LOCAL_PREFIX_ACTION = 'Órbita Prisma 9202';
+const LOCAL_PREFIX_FILENAME = `LOCAL TEST ${LOCAL_PREFIX_ACTION} Mailing.svg`;
 
 const MINIMAL_REAL_SHAPE_SVG = `
 <svg xmlns="http://www.w3.org/2000/svg" width="360" height="180" viewBox="0 0 360 180">
@@ -63,6 +67,8 @@ async function pricingCsv(): Promise<string> {
     clonePricingRow(template, 'F007', 'Feed 7', 32007, 24007),
     clonePricingRow(template, 'M001', 'Mailing', 33000, 25000),
     clonePricingRow(template, 'Q137', SYNTHETIC_ACTION, 21000, 15750),
+    clonePricingRow(template, 'A201', FORMAT_LOCAL_TOKEN_ACTION, 22000, 16500),
+    clonePricingRow(template, 'P202', LOCAL_PREFIX_ACTION, 23000, 17250),
   ].join('\n');
 }
 
@@ -71,13 +77,18 @@ async function loadPricingSource(api: ControlApi): Promise<void> {
   await executeAndWaitForState(
     api,
     'source.load',
-    { files: asFile(csv, 'w9-pricing.csv', 'text/csv') },
+    { files: asFile(csv, 'w11-pricing.csv', 'text/csv') },
     (state) => getPath(state, 'source', 'status') === 'ready'
-      && getPath(state, 'source', 'fileName') === 'w9-pricing.csv',
+      && getPath(state, 'source', 'fileName') === 'w11-pricing.csv',
   );
 }
 
-describe('W9 runtime: SVG reales con matching/precios data-driven', () => {
+function expectActionOnlyProvenance(file: Record<string, unknown>, fileName: string): void {
+  expect(getPath(file, 'trace', 'local', 'raw'), `${fileName} no debe inventar Local raw`).toBeUndefined();
+  expect(getPath(file, 'trace', 'local', 'canonical'), `${fileName} no debe inventar Local canónico`).toBeUndefined();
+}
+
+describe('W11 runtime: matching/precios/provenance data-driven', () => {
   let api: ControlApi;
 
   beforeAll(async () => {
@@ -89,9 +100,14 @@ describe('W9 runtime: SVG reales con matching/precios data-driven', () => {
     expect(reset.ok).toBe(true);
   });
 
-  it('resuelve los cinco filenames observados y una acción inédita sin usar el contenido SVG como identidad', async () => {
+  it('resuelve los cinco SVG observados, precios y provenance action-only por el camino productivo', async () => {
     await loadPricingSource(api);
-    const names = [...REAL_FILENAMES, SYNTHETIC_FILENAME];
+    const names = [
+      ...REAL_FILENAMES,
+      SYNTHETIC_FILENAME,
+      FORMAT_LOCAL_TOKEN_FILENAME,
+      LOCAL_PREFIX_FILENAME,
+    ];
     const files = names.map((name) => asFile(MINIMAL_REAL_SHAPE_SVG, name, 'image/svg+xml'));
 
     await executeAndWaitForState(
@@ -102,14 +118,16 @@ describe('W9 runtime: SVG reales con matching/precios data-driven', () => {
         && getPath(state, 'counts', 'svgFiles') === names.length,
     );
 
-    const model = workbenchModel();
+    let model = workbenchModel();
     for (const name of REAL_FILENAMES) {
       const file = findRecordByStringField(model, 'fileName', name);
       expect(file, `${name} debe existir en el modelo productivo`).not.toBeNull();
+      if (file === null) continue;
       expect(getPath(file, 'match', 'status'), `${name} debe quedar matched`).toBe('matched');
       expect(getPath(file, 'match', 'selected', 'label')).toBe('Tres Tiempos');
       expect(containsScalar(file, 10000), `${name} debe resolver NORMAL`).toBe(true);
       expect(containsScalar(file, 7500), `${name} debe resolver ÉMINENT`).toBe(true);
+      expectActionOnlyProvenance(file, name);
     }
 
     const synthetic = findRecordByStringField(model, 'fileName', SYNTHETIC_FILENAME);
@@ -118,5 +136,38 @@ describe('W9 runtime: SVG reales con matching/precios data-driven', () => {
     expect(getPath(synthetic, 'match', 'selected', 'label')).toBe(SYNTHETIC_ACTION);
     expect(containsScalar(synthetic, 21000)).toBe(true);
     expect(containsScalar(synthetic, 15750)).toBe(true);
+
+    const confusing = findRecordByStringField(model, 'fileName', FORMAT_LOCAL_TOKEN_FILENAME);
+    expect(confusing).not.toBeNull();
+    expect(getPath(confusing, 'match', 'status')).toBe('matched');
+    expect(getPath(confusing, 'match', 'selected', 'label')).toBe(FORMAT_LOCAL_TOKEN_ACTION);
+    expect(containsScalar(confusing, 22000)).toBe(true);
+    expect(containsScalar(confusing, 16500)).toBe(true);
+    if (confusing !== null) expectActionOnlyProvenance(confusing, FORMAT_LOCAL_TOKEN_FILENAME);
+
+    const localPrefix = findRecordByStringField(model, 'fileName', LOCAL_PREFIX_FILENAME);
+    expect(localPrefix).not.toBeNull();
+    expect(getPath(localPrefix, 'match', 'status')).toBe('matched');
+    expect(getPath(localPrefix, 'match', 'selected', 'label')).toBe(LOCAL_PREFIX_ACTION);
+    expect(containsScalar(localPrefix, 23000)).toBe(true);
+    expect(containsScalar(localPrefix, 17250)).toBe(true);
+    expect(getPath(localPrefix, 'trace', 'local', 'raw')).toBe('LOCAL TEST');
+    expect(getPath(localPrefix, 'trace', 'local', 'canonical')).toBe('local test');
+
+    await executeAndWaitForState(
+      api,
+      'preflight.run',
+      undefined,
+      (state) => getPath(state, 'preflight', 'fileCount') === names.length,
+    );
+
+    model = workbenchModel();
+    for (const name of REAL_FILENAMES) {
+      const file = findRecordByStringField(model, 'fileName', name);
+      expect(file).not.toBeNull();
+      expect(containsScalar(file, 'matching.unmatched'), `${name} no debe producir matching.unmatched`).toBe(false);
+      expect(containsScalar(file, 'pricing.record-not-found'), `${name} debe conservar la fila de precios resuelta`).toBe(false);
+      expect(containsScalar(file, 'pricing.explicit-pair-missing'), `${name} debe conservar NORMAL/ÉMINENT`).toBe(false);
+    }
   });
 });
