@@ -106,7 +106,7 @@ async function main() {
   await copyDirectory(path.join(rootDir, 'src'), path.join(outputDir, 'src'));
   await copyDirectory(testsSource, path.join(outputDir, 'tests'));
 
-  const portableScripts = ['portable-pipeline.mjs', 'serve-dist.mjs'];
+  const portableScripts = ['portable-pipeline.mjs', 'serve-dist.mjs', 'upload-feedback-probe.mjs'];
   for (const fileName of portableScripts) {
     const source = await requireFile(path.join('scripts', fileName));
     await copyFile(source, path.join(outputDir, 'scripts', fileName));

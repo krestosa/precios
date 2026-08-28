@@ -13,9 +13,21 @@ import {
   type SvgEngineGenerationResult,
 } from '../features/svg-engine';
 import type { WorkbenchEventMap } from '../features/ui/events';
+import type { FontView, WorkbenchFileView } from '../features/ui/models';
 import type { PriceWorkbench } from '../features/ui/workbench';
 import type { PreciosAppCommandName } from '../features/ui/control-api/types';
-import { fileTrace, fileView, resolutionFontView, runtimePriceAlternatives, sourceSnapshot } from './view-model';
+import {
+  failedSvgView,
+  fileTrace,
+  fileView,
+  formatUploadMetadata,
+  pendingSvgView,
+  registeredFontView,
+  resolutionFontView,
+  runtimePriceAlternatives,
+  sourceReadyMessage,
+  sourceSnapshot,
+} from './view-model';
 import {
   emptyModel,
   fileStem,
@@ -30,9 +42,14 @@ import {
 
 const APP_SLOT = '__preciosAppRuntimeV1' as const;
 type RuntimeHost = PriceWorkbench & { [APP_SLOT]?: AppRuntimeController };
+type UploadCommand = 'source.load' | 'svg.load' | 'font.load';
 
 function diagnosticMessage(code: string, message: string): string {
   return `${code}: ${message}`;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function triggerDownload(fileName: string, bytes: string | Uint8Array, mimeType: string): void {
@@ -55,9 +72,14 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
 
   let disposed = false;
   let operationRevision = 0;
+  let activeUpload: { readonly command: UploadCommand; readonly revision: number } | null = null;
   let source: RuntimeSource | null = null;
   let fileSequence = 0;
   let files = new Map<string, RuntimeFile>();
+  let svgOrder: string[] = [];
+  let pendingSvgFiles = new Map<string, File>();
+  let failedSvgFiles = new Map<string, { readonly file: File; readonly message: string }>();
+  let uploadedFontViews = new Map<string, FontView>();
   let exportResult: AppRuntimeSnapshot['exportResult'] = null;
   let previewCommand: AppRuntimeSnapshot['preview'] = null;
   const pending = new Map<PreciosAppCommandName, Promise<void>>();
@@ -66,18 +88,83 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
   const fontResolver = new BrowserFontResolver();
   let model = emptyModel();
 
+  const composedFileViews = (): WorkbenchFileView[] => {
+    const runtimeViews = new Map([...files.values()].map((file) => [file.id, fileView(file, source)] as const));
+    if (svgOrder.length === 0) return [...runtimeViews.values()];
+    return svgOrder.flatMap((id) => {
+      const ready = runtimeViews.get(id);
+      if (ready !== undefined) return [ready];
+      const pendingFile = pendingSvgFiles.get(id);
+      if (pendingFile !== undefined) return [pendingSvgView(id, pendingFile, source)];
+      const failed = failedSvgFiles.get(id);
+      return failed === undefined ? [] : [failedSvgView(id, failed.file, source, failed.message)];
+    });
+  };
+
   const publish = (): void => {
     if (disposed) return;
-    model.files = [...files.values()].map((file) => fileView(file, source));
+    model.files = composedFileViews();
     workbench.model = { ...model };
     stateListeners.forEach((listener) => listener());
+  };
+
+  const refreshFontModel = (): void => {
+    const analyses = [...files.values()].map((file) => file.analysis);
+    const required = requiredFontsFromSvgAnalyses(analyses);
+    const resolutions = typeof document === 'undefined' || document.fonts === undefined
+      ? []
+      : fontResolver.resolveRequired(required);
+    const merged = new Map<string, FontView>(uploadedFontViews);
+    resolutions.map(resolutionFontView).forEach((view) => {
+      if (!merged.has(view.id)) merged.set(view.id, view);
+    });
+    model.fonts = [...merged.values()];
+  };
+
+  const interruptActiveUpload = (): void => {
+    if (activeUpload === null) return;
+    if (activeUpload.command === 'source.load' && model.source.status === 'loading') {
+      model.source = {
+        ...model.source,
+        status: 'error',
+        message: 'La carga fue interrumpida por una nueva operación.',
+      };
+    }
+    if (activeUpload.command === 'svg.load' && model.svgLoadStatus === 'loading') {
+      model.svgLoadStatus = files.size > 0 ? 'ready' : 'error';
+      pendingSvgFiles.clear();
+    }
+    if (activeUpload.command === 'font.load' && model.fontLoadStatus === 'loading') {
+      model.fontLoadStatus = uploadedFontViews.size > 0 ? 'ready' : 'error';
+    }
+    delete model.progress;
+  };
+
+  const beginUpload = (command: UploadCommand): number => {
+    interruptActiveUpload();
+    const revision = ++operationRevision;
+    activeUpload = { command, revision };
+    return revision;
+  };
+
+  const isCurrentUpload = (command: UploadCommand, revision: number): boolean =>
+    !disposed && activeUpload?.command === command && activeUpload.revision === revision;
+
+  const finishUpload = (command: UploadCommand, revision: number): void => {
+    if (isCurrentUpload(command, revision)) activeUpload = null;
   };
 
   const track = (command: PreciosAppCommandName, task: Promise<void>): void => {
     const guarded = task.catch((error) => {
       if (disposed) return;
-      const message = error instanceof Error ? error.message : String(error);
-      if (command === 'source.load') model.source = { ...model.source, status: 'error', message };
+      const message = errorMessage(error);
+      if (command === 'source.load') {
+        model.source = {
+          ...model.source,
+          status: 'error',
+          message: model.source.message ?? message,
+        };
+      }
       if (command === 'svg.load') model.svgLoadStatus = 'error';
       if (command === 'font.load') model.fontLoadStatus = 'error';
       if (command === 'export.request') {
@@ -91,6 +178,7 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
           message,
         };
       }
+      delete model.progress;
       publish();
     }).finally(() => {
       if (pending.get(command) === guarded) pending.delete(command);
@@ -147,85 +235,190 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
   };
 
   const onSourceFiles = async (detail: WorkbenchEventMap['pw:price-source-files']): Promise<void> => {
-    const revision = ++operationRevision;
+    const revision = beginUpload('source.load');
+    const selected = detail.files[0];
     exportResult = null;
+    delete model.progress;
     model.source = {
       status: 'loading',
-      ...(detail.files[0] === undefined ? {} : { fileName: detail.files[0].name }),
+      ...(selected === undefined ? {} : { fileName: selected.name }),
       capabilities: { csv: true, xlsx: true, xls: true },
+      message: selected === undefined ? 'Procesando selección…' : `Procesando… · ${formatUploadMetadata(selected)}`,
     };
     publish();
-    if (detail.files.length !== 1) {
-      source = null;
-      model.source = {
-        status: 'error',
-        capabilities: { csv: true, xlsx: true, xls: true },
-        message: 'Debe cargarse exactamente un archivo CSV/XLSX/XLS como fuente de precios.',
+
+    try {
+      if (detail.files.length !== 1) {
+        source = null;
+        model.source = {
+          status: 'error',
+          capabilities: { csv: true, xlsx: true, xls: true },
+          message: 'Error · Debe cargarse exactamente un archivo CSV/XLSX/XLS como fuente de precios.',
+        };
+        publish();
+        return;
+      }
+
+      const file = detail.files[0]!;
+      const data = await file.arrayBuffer();
+      if (!isCurrentUpload('source.load', revision)) return;
+      const loaded = loadLocalWorkbook({ sourceId: `local:${file.name}`, fileName: file.name, data });
+      const readySnapshots = loaded.snapshots.filter((snapshot) => snapshot.status === 'ready');
+      if (readySnapshots.length === 0) {
+        source = null;
+        model.source = {
+          status: 'error',
+          fileName: file.name,
+          capabilities: { csv: true, xlsx: true, xls: true },
+          message: `Error · ${formatUploadMetadata(file)} · ${loaded.diagnostics.map((item) => diagnosticMessage(item.code, item.message)).join(' · ') || 'La fuente no produjo datos utilizables.'}`,
+        };
+        publish();
+        return;
+      }
+
+      const adapted = readySnapshots.map((snapshot) => adaptObservedPricingMatrix(snapshot));
+      source = {
+        fileName: file.name,
+        rows: adapted.flatMap((item) => item.rows),
+        diagnostics: [...loaded.diagnostics, ...adapted.flatMap((item) => item.diagnostics)],
       };
-      publish();
-      return;
-    }
-    const file = detail.files[0]!;
-    const data = await file.arrayBuffer();
-    if (disposed || revision !== operationRevision) return;
-    const loaded = loadLocalWorkbook({ sourceId: `local:${file.name}`, fileName: file.name, data });
-    const readySnapshots = loaded.snapshots.filter((snapshot) => snapshot.status === 'ready');
-    if (readySnapshots.length === 0) {
-      source = null;
       model.source = {
-        status: 'error',
+        status: 'ready',
         fileName: file.name,
         capabilities: { csv: true, xlsx: true, xls: true },
-        message: loaded.diagnostics.map((item) => diagnosticMessage(item.code, item.message)).join(' · ') || 'La fuente no produjo datos utilizables.',
+        message: `${sourceReadyMessage(source)} · ${formatUploadMetadata(file)}`,
+      };
+      refreshMatching();
+      delete model.preflight;
+      publish();
+    } catch (error) {
+      if (!isCurrentUpload('source.load', revision)) return;
+      source = null;
+      model.source = {
+        status: 'error',
+        ...(selected === undefined ? {} : { fileName: selected.name }),
+        capabilities: { csv: true, xlsx: true, xls: true },
+        message: `Error · ${selected === undefined ? '' : `${formatUploadMetadata(selected)} · `}${errorMessage(error)}`,
       };
       publish();
-      return;
+      throw error;
+    } finally {
+      if (isCurrentUpload('source.load', revision)) {
+        if (model.source.status === 'loading') {
+          model.source = { ...model.source, status: 'error', message: 'Error · La carga terminó sin un resultado observable.' };
+          publish();
+        }
+        finishUpload('source.load', revision);
+      }
     }
-    const adapted = readySnapshots.map((snapshot) => adaptObservedPricingMatrix(snapshot));
-    source = {
-      fileName: file.name,
-      rows: adapted.flatMap((item) => item.rows),
-      diagnostics: [...loaded.diagnostics, ...adapted.flatMap((item) => item.diagnostics)],
-    };
-    model.source = {
-      status: 'ready',
-      fileName: file.name,
-      capabilities: { csv: true, xlsx: true, xls: true },
-      ...(source.diagnostics.length === 0 ? {} : { message: `${source.diagnostics.length} diagnóstico(s) preservados de la fuente.` }),
-    };
-    refreshMatching();
-    delete model.preflight;
-    publish();
   };
 
   const onSvgFiles = async (detail: WorkbenchEventMap['pw:svg-files']): Promise<void> => {
-    const revision = ++operationRevision;
+    const revision = beginUpload('svg.load');
     exportResult = null;
     model.svgLoadStatus = 'loading';
     delete model.preflight;
-    publish();
     matchStore.clear();
-    const next = new Map<string, RuntimeFile>();
-    for (const file of detail.files) {
-      const svg = await file.text();
-      if (disposed || revision !== operationRevision) return;
+    files = new Map();
+    pendingSvgFiles = new Map();
+    failedSvgFiles = new Map();
+    svgOrder = [];
+
+    const staged = detail.files.map((file) => {
       fileSequence += 1;
       const id = `svg:${fileSequence}:${file.name}`;
-      const analysis = analyzeSvg(svg);
-      const runtimeFile: RuntimeFile = {
-        id,
-        fileName: file.name,
-        sourceSvg: svg,
-        analysis,
-        match: matchName(fileStem(file.name), priceTargets()),
-        priceAlternatives: [],
-      };
-      resolvePrices(runtimeFile);
-      next.set(id, runtimeFile);
+      svgOrder.push(id);
+      pendingSvgFiles.set(id, file);
+      return { id, file };
+    });
+
+    if (staged.length > 0) {
+      model.progress = { value: 0, max: staged.length, label: `0 de ${staged.length} SVG analizados` };
+    } else {
+      delete model.progress;
     }
-    files = next;
-    model.svgLoadStatus = 'ready';
     publish();
+
+    let completed = 0;
+    let readyCount = 0;
+    let errorCount = 0;
+
+    try {
+      if (staged.length === 0) {
+        model.svgLoadStatus = 'error';
+        publish();
+        return;
+      }
+
+      for (const entry of staged) {
+        if (!isCurrentUpload('svg.load', revision)) return;
+        model.progress = {
+          value: completed,
+          max: staged.length,
+          label: `Analizando ${entry.file.name} · ${completed} de ${staged.length} completados`,
+        };
+        publish();
+
+        try {
+          const svg = await entry.file.text();
+          if (!isCurrentUpload('svg.load', revision)) return;
+          const analysis = analyzeSvg(svg);
+          const runtimeFile: RuntimeFile = {
+            id: entry.id,
+            fileName: entry.file.name,
+            sourceSvg: svg,
+            analysis,
+            match: matchName(fileStem(entry.file.name), priceTargets()),
+            priceAlternatives: [],
+          };
+          resolvePrices(runtimeFile);
+          files.set(entry.id, runtimeFile);
+          readyCount += 1;
+        } catch (error) {
+          if (!isCurrentUpload('svg.load', revision)) return;
+          errorCount += 1;
+          failedSvgFiles.set(entry.id, {
+            file: entry.file,
+            message: `Error de análisis: ${errorMessage(error)}`,
+          });
+        } finally {
+          if (isCurrentUpload('svg.load', revision)) {
+            pendingSvgFiles.delete(entry.id);
+            completed += 1;
+            refreshFontModel();
+            model.progress = {
+              value: completed,
+              max: staged.length,
+              label: `${completed} de ${staged.length} SVG analizados · ${readyCount} listo(s) · ${errorCount} con error`,
+            };
+            publish();
+          }
+        }
+      }
+
+      if (!isCurrentUpload('svg.load', revision)) return;
+      model.svgLoadStatus = readyCount > 0 ? 'ready' : 'error';
+      model.progress = {
+        value: staged.length,
+        max: staged.length,
+        label: `${staged.length} SVG · ${readyCount} listo(s) · ${errorCount} con error`,
+      };
+      refreshFontModel();
+      publish();
+    } finally {
+      if (isCurrentUpload('svg.load', revision)) {
+        if (model.svgLoadStatus === 'loading') {
+          model.svgLoadStatus = readyCount > 0 ? 'ready' : 'error';
+          model.progress = {
+            value: completed,
+            max: Math.max(staged.length, 1),
+            label: `${completed} de ${staged.length} SVG completados · operación finalizada`,
+          };
+          publish();
+        }
+        finishUpload('svg.load', revision);
+      }
+    }
   };
 
   const currentFontResolutions = (file: RuntimeFile): readonly FontResolution[] => {
@@ -235,24 +428,81 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
   };
 
   const onFontFiles = async (detail: WorkbenchEventMap['pw:font-files']): Promise<void> => {
-    const revision = ++operationRevision;
+    const revision = beginUpload('font.load');
     model.fontLoadStatus = 'loading';
+    const total = detail.files.length;
+    let completed = 0;
+    let registeredCount = 0;
+    let errorCount = 0;
+    if (total > 0) model.progress = { value: 0, max: total, label: `0 de ${total} fuentes procesadas` };
+    else delete model.progress;
     publish();
-    for (const file of detail.files) {
-      const bytes = await file.arrayBuffer();
-      if (disposed || revision !== operationRevision) return;
-      await fontResolver.registerUpload({ name: file.name, mimeType: file.type, bytes });
+
+    try {
+      if (total === 0) {
+        model.fontLoadStatus = 'error';
+        publish();
+        return;
+      }
+
+      for (const file of detail.files) {
+        if (!isCurrentUpload('font.load', revision)) return;
+        model.progress = {
+          value: completed,
+          max: total,
+          label: `Registrando ${file.name} · ${completed} de ${total} completadas`,
+        };
+        publish();
+
+        try {
+          const bytes = await file.arrayBuffer();
+          if (!isCurrentUpload('font.load', revision)) return;
+          const result = await fontResolver.registerUpload({ name: file.name, mimeType: file.type, bytes });
+          if (!isCurrentUpload('font.load', revision)) return;
+          const view = registeredFontView(result);
+          if (view === undefined) {
+            errorCount += 1;
+          } else {
+            registeredCount += 1;
+            uploadedFontViews.set(view.id, view);
+          }
+        } catch {
+          if (!isCurrentUpload('font.load', revision)) return;
+          errorCount += 1;
+        } finally {
+          if (isCurrentUpload('font.load', revision)) {
+            completed += 1;
+            refreshFontModel();
+            model.progress = {
+              value: completed,
+              max: total,
+              label: `${completed} de ${total} fuentes · ${registeredCount} registrada(s) · ${errorCount} con error`,
+            };
+            publish();
+          }
+        }
+      }
+
+      if (!isCurrentUpload('font.load', revision)) return;
+      refreshFontModel();
+      model.fontLoadStatus = errorCount > 0 ? 'error' : 'ready';
+      delete model.preflight;
+      for (const file of files.values()) delete file.preflight;
+      model.progress = {
+        value: total,
+        max: total,
+        label: `${total} fuente(s) · ${registeredCount} registrada(s) · ${errorCount} con error`,
+      };
+      publish();
+    } finally {
+      if (isCurrentUpload('font.load', revision)) {
+        if (model.fontLoadStatus === 'loading') {
+          model.fontLoadStatus = registeredCount > 0 ? 'ready' : 'error';
+          publish();
+        }
+        finishUpload('font.load', revision);
+      }
     }
-    const analyses = [...files.values()].map((file) => file.analysis);
-    const required = requiredFontsFromSvgAnalyses(analyses);
-    const resolutions = typeof document === 'undefined' || document.fonts === undefined
-      ? []
-      : fontResolver.resolveRequired(required);
-    model.fonts = resolutions.map(resolutionFontView);
-    model.fontLoadStatus = 'ready';
-    delete model.preflight;
-    for (const file of files.values()) delete file.preflight;
-    publish();
   };
 
   const analysisOnlyGeneration = (file: RuntimeFile): SvgEngineGenerationResult => {
@@ -305,23 +555,36 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
   const onPreflight = async (): Promise<void> => {
     exportResult = null;
     const filePreflights: FilePreflight[] = [];
-    for (const file of files.values()) {
-      const generation = await runGeneration(file);
-      if (disposed) return;
-      if (generation === undefined) delete file.generation;
-      else file.generation = generation;
-      const preflight = buildSvgFilePreflight({
-        fileId: file.id,
-        fileName: file.fileName,
-        result: generation ?? analysisOnlyGeneration(file),
-        fonts: currentFontResolutions(file),
-        exportIssues: additionalPreflightIssues(file),
-      });
-      file.preflight = preflight;
-      filePreflights.push(preflight);
-    }
-    model.preflight = { files: filePreflights };
+    const total = files.size;
+    let completed = 0;
+    if (total > 0) model.progress = { value: 0, max: total, label: `Preflight 0 de ${total}` };
     publish();
+    try {
+      for (const file of files.values()) {
+        const generation = await runGeneration(file);
+        if (disposed) return;
+        if (generation === undefined) delete file.generation;
+        else file.generation = generation;
+        const preflight = buildSvgFilePreflight({
+          fileId: file.id,
+          fileName: file.fileName,
+          result: generation ?? analysisOnlyGeneration(file),
+          fonts: currentFontResolutions(file),
+          exportIssues: additionalPreflightIssues(file),
+        });
+        file.preflight = preflight;
+        filePreflights.push(preflight);
+        completed += 1;
+        model.preflight = { files: [...filePreflights] };
+        if (total > 0) model.progress = { value: completed, max: total, label: `Preflight ${completed} de ${total}` };
+        publish();
+      }
+    } finally {
+      if (!disposed && total > 0) {
+        model.progress = { value: completed, max: total, label: `Preflight ${completed} de ${total} completado` };
+        publish();
+      }
+    }
   };
 
   const onMatchApply = (detail: WorkbenchEventMap['pw:match-apply']): void => {
@@ -414,8 +677,13 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
 
   const reset = (): void => {
     operationRevision += 1;
+    activeUpload = null;
     source = null;
     files = new Map();
+    svgOrder = [];
+    pendingSvgFiles = new Map();
+    failedSvgFiles = new Map();
+    uploadedFontViews = new Map();
     fileSequence = 0;
     exportResult = null;
     previewCommand = null;
@@ -483,6 +751,7 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
       if (disposed) return;
       disposed = true;
       operationRevision += 1;
+      activeUpload = null;
       for (const [name, listener] of listeners) workbench.removeEventListener(name, listener);
       listeners.length = 0;
       pending.clear();

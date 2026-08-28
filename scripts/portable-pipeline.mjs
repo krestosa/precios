@@ -150,6 +150,7 @@ async function collectHashTargets(distFiles, testFiles) {
     'README.md',
     path.join('scripts', 'portable-pipeline.mjs'),
     path.join('scripts', 'serve-dist.mjs'),
+    path.join('scripts', 'upload-feedback-probe.mjs'),
   ];
 
   const existing = [];
@@ -279,6 +280,7 @@ async function main() {
   await runCommand('typecheck', npmCommand, ['run', 'typecheck']);
   await runCommand('tests', npmCommand, ['run', 'test:run']);
   await runCommand('build', npmCommand, ['run', 'build']);
+  await runCommand('upload-feedback-probe', process.execPath, [path.join('scripts', 'upload-feedback-probe.mjs')]);
 
   const distFiles = await ensureDist();
   const dependencyTree = await runCommand('dependency-tree', npmCommand, ['ls', '--all', '--json'], { allowFailure: true });
@@ -313,6 +315,7 @@ async function main() {
       typecheck: 'passed',
       tests: 'passed',
       build: 'passed',
+      uploadFeedbackProbe: 'passed',
       dependencyTreeExitCode: dependencyTree.exitCode,
     },
     tests: {

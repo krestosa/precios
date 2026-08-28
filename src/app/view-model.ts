@@ -1,5 +1,5 @@
 import type { FileTrace, FontRecord, PriceField, PriceSourceKind, SourceLoc } from '../domain/contracts';
-import type { FontResolution } from '../features/font-resolver';
+import type { FontRegistrationResult, FontResolution } from '../features/font-resolver';
 import { buildSvgPreviewModel } from '../features/svg-engine';
 import type { FontView, PreviewView, WorkbenchFileView } from '../features/ui/models';
 import type {
@@ -120,6 +120,55 @@ export function fileView(file: RuntimeFile, source: RuntimeSource | null): Workb
   };
 }
 
+export function formatUploadMetadata(file: File): string {
+  const bytes = file.size;
+  const units = ['B', 'KB', 'MB', 'GB'] as const;
+  let value = bytes;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+  const size = unitIndex === 0 ? `${value} ${units[unitIndex]}` : `${value.toFixed(value >= 10 ? 1 : 2)} ${units[unitIndex]}`;
+  const type = file.type.trim().length > 0 ? file.type : 'tipo no informado';
+  return `${size} · ${type}`;
+}
+
+export function sourceReadyMessage(source: RuntimeSource): string {
+  const products = source.rows.filter((row) => row.kind === 'product' && row.product !== undefined);
+  const groups = new Set<string>();
+  const channels = new Set<string>();
+  let knownPrices = 0;
+
+  for (const row of products) {
+    for (const slot of row.slots) {
+      if (slot.groupRaw.trim().length > 0) groups.add(slot.groupRaw);
+      channels.add(slot.channel);
+      if (slot.field.state === 'known') knownPrices += 1;
+    }
+  }
+
+  const diagnostics = source.diagnostics.length === 0 ? '' : ` · ${source.diagnostics.length} diagnóstico(s)`;
+  return `Listo · ${source.rows.length} fila(s) · ${products.length} producto(s) · ${groups.size} grupo(s) · ${channels.size} canal(es) · ${knownPrices} precio(s) explícito(s)${diagnostics}`;
+}
+
+export function pendingSvgView(id: string, file: File, source: RuntimeSource | null): WorkbenchFileView {
+  return {
+    id,
+    fileName: file.name,
+    detectedLocal: fileStem(file.name),
+    ...(source === null ? {} : { sourceFileName: source.fileName }),
+    exportable: false,
+  };
+}
+
+export function failedSvgView(id: string, file: File, source: RuntimeSource | null, message: string): WorkbenchFileView {
+  return {
+    ...pendingSvgView(id, file, source),
+    errors: [message],
+  };
+}
+
 export function sourceSnapshot(source: RuntimeSource | null): AppRuntimeSnapshot['source'] {
   if (source === null) return null;
   return {
@@ -176,5 +225,20 @@ export function resolutionFontView(resolution: FontResolution, index: number): F
       diagnostics: resolution.diagnostics,
     },
     resolution.status === 'mismatch' ? 'mismatch' : 'missing',
+  );
+}
+
+export function registeredFontView(result: FontRegistrationResult): FontView | undefined {
+  if (result.status !== 'registered' || result.registered === undefined) return undefined;
+  return fontView(
+    result.registered.id,
+    {
+      spec: result.registered.spec,
+      source: 'uploaded',
+      status: 'available',
+      file: result.registered.meta,
+      diagnostics: result.diagnostics,
+    },
+    'uploaded',
   );
 }
