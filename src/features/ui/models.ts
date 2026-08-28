@@ -18,6 +18,7 @@ export type SheetSupportStatus = 'unknown' | 'supported' | 'unsupported';
 export type PreviewMode = 'original' | 'result' | 'overlay';
 export type FontUiStatus = 'installed' | 'uploaded' | 'missing' | 'mismatch';
 export type LayoutIssueKind = 'overflow' | 'alignment' | 'missing-font';
+export type ArtworkSourceScopeView = 'generic' | 'local-specific';
 
 export interface SourceCapabilityView {
   readonly csv: boolean;
@@ -93,18 +94,33 @@ export interface FilePriceView {
   readonly discount25?: Discount25Validation;
 }
 
+export interface DerivedPricingTargetView {
+  readonly id: string;
+  readonly pricingGroup: string | null;
+  readonly scopes: readonly string[];
+  readonly normal?: PriceField;
+  readonly eminent?: PriceField;
+  readonly overridden: boolean;
+  readonly blocking: boolean;
+}
+
 export interface WorkbenchFileView {
   readonly id: string;
   readonly fileName: string;
+  readonly sourceArtworkFileName?: string;
   readonly processingState: ProcessingState;
   readonly processingMessage?: string;
   readonly selected?: boolean;
   readonly detectedLocal?: string;
+  readonly sourceScope?: ArtworkSourceScopeView;
+  readonly sourceLocal?: string | null;
   readonly match?: MatchResult;
   readonly classification?: SvgClass;
   readonly sourceFileName?: string;
   readonly rawGroup?: string | null;
   readonly channel?: Channel;
+  readonly targetScopes?: readonly string[];
+  readonly derivedTargets?: readonly DerivedPricingTargetView[];
   readonly prices?: FilePriceView;
   readonly preflight?: FilePreflight;
   readonly generation?: SvgGenerationResult;
