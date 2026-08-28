@@ -1,10 +1,10 @@
 import markup from './fonts.html?raw';
 import styles from './fonts.css?raw';
 import '../../../../components';
-import { mountStaticShadow, requiredElement } from '../../../../components/shadow';
+import { mountStaticShadow, requiredElement, upgradeProperty } from '../../../../components/shadow';
 import type { FileDropzone, FilesSelectedDetail, StatusChip } from '../../../../components';
 import type { FontView, UiLoadStatus } from '../../models';
-import { fontLabel, fontTone } from '../../presentation';
+import { fontLabel, fontTone, processingLabel, processingTone } from '../../presentation';
 import { emitUiTemplateEvent } from '../template-events';
 
 export class FontsTemplate extends HTMLElement {
@@ -29,7 +29,7 @@ export class FontsTemplate extends HTMLElement {
   get fonts(): readonly FontView[] { return this.fontsValue; }
   set loadStatus(value: UiLoadStatus) { this.loadStatusValue = value; this.sync(); }
   get loadStatus(): UiLoadStatus { return this.loadStatusValue; }
-  connectedCallback(): void { this.sync(); }
+  connectedCallback(): void { upgradeProperty(this, 'fonts'); upgradeProperty(this, 'loadStatus'); this.sync(); }
 
   private sync(): void {
     this.dropzone.status = this.loadStatusValue;
@@ -38,11 +38,21 @@ export class FontsTemplate extends HTMLElement {
     this.list.replaceChildren();
     this.fontsValue.forEach((font) => {
       const fragment = this.itemTemplate.content.cloneNode(true) as DocumentFragment;
-      requiredElement<HTMLElement>(fragment, 'strong').textContent = font.record.spec.family;
-      requiredElement<HTMLElement>(fragment, '.font-text span').textContent = `Peso ${font.record.spec.weight} · ${font.record.spec.style}${font.requiredBy?.length ? ` · ${font.requiredBy.length} archivo(s)` : ''}`;
-      const chip = requiredElement<StatusChip>(fragment, 'pw-status-chip');
-      chip.tone = fontTone(font.uiStatus);
-      chip.label = fontLabel(font.uiStatus);
+      requiredElement<HTMLElement>(fragment, 'strong').textContent = font.displayName;
+      const details: string[] = [];
+      if (font.record) details.push(`${font.record.spec.family} · Peso ${font.record.spec.weight} · ${font.record.spec.style}`);
+      if (font.requiredBy?.length) details.push(`${font.requiredBy.length} archivo(s)`);
+      if (font.message) details.push(font.message);
+      requiredElement<HTMLElement>(fragment, '.font-text span').textContent = details.join(' · ');
+      const processingChip = requiredElement<StatusChip>(fragment, '.processing-status');
+      processingChip.tone = processingTone(font.processingState);
+      processingChip.label = processingLabel(font.processingState);
+      const resolutionChip = requiredElement<StatusChip>(fragment, '.resolution-status');
+      resolutionChip.hidden = font.uiStatus === undefined;
+      if (font.uiStatus !== undefined) {
+        resolutionChip.tone = fontTone(font.uiStatus);
+        resolutionChip.label = fontLabel(font.uiStatus);
+      }
       this.list.append(fragment);
     });
   }

@@ -1,10 +1,10 @@
 :host { display: block; }
-.trace-grid { display: grid; grid-template-columns: minmax(var(--pw-component-trace-label-min), 0.8fr) minmax(0, 1.4fr); gap: var(--pw-component-trace-gap) var(--pw-semantic-space-md); margin: 0; font: var(--pw-component-trace-type); letter-spacing: var(--pw-component-trace-type-letter-spacing); }
-.trace-grid dt { color: var(--pw-semantic-color-scheme-on-surface-variant); }
+.trace-grid { display: grid; grid-template-columns: minmax(128px, 0.8fr) minmax(0, 1.4fr); gap: var(--pw-space-sm) var(--pw-space-md); margin: 0; font: var(--pw-type-body-small); letter-spacing: var(--pw-type-body-small-letter-spacing); }
+.trace-grid dt { color: var(--pw-color-on-surface-variant); }
 .trace-grid dd { margin: 0; overflow-wrap: anywhere; }
-section { margin-top: var(--pw-semantic-space-xl); padding-top: var(--pw-semantic-space-lg); border-top: var(--pw-semantic-size-border) solid var(--pw-semantic-color-scheme-outline-variant); }
-h3 { margin: 0 0 var(--pw-component-trace-gap); font: var(--pw-component-trace-heading-type); letter-spacing: var(--pw-component-trace-heading-type-letter-spacing); }
-ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--pw-component-trace-gap); }
-p { color: var(--pw-semantic-color-scheme-on-surface-variant); font: var(--pw-component-trace-type); letter-spacing: var(--pw-component-trace-type-letter-spacing); }
-.locations { font-family: var(--pw-foundation-type-family-mono); font-size: var(--pw-foundation-type-size-px12); line-height: var(--pw-foundation-type-line-height-px16); }
+section { margin-top: 20px; padding-top: var(--pw-space-lg); border-top: var(--pw-border-width) solid var(--pw-color-outline-variant); }
+h3 { margin: 0 0 var(--pw-space-sm); font: var(--pw-type-title-medium); letter-spacing: var(--pw-type-title-medium-letter-spacing); }
+ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--pw-space-sm); }
+p { color: var(--pw-color-on-surface-variant); font: var(--pw-type-body-small); letter-spacing: var(--pw-type-body-small-letter-spacing); }
+.locations { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; line-height: 16px; }
 [hidden], ul:empty { display: none !important; }

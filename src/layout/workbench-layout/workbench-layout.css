@@ -1,5 +1,11 @@
-:host { display: block; min-width: 0; }
-.shell { display: grid; gap: var(--pw-component-workbench-layout-gap); grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--pw-component-workbench-layout-left-min)), 1fr)); align-items: start; }
-.column { min-width: 0; display: grid; gap: var(--pw-component-workbench-layout-gap); }
-.center { min-inline-size: min(100%, var(--pw-component-workbench-layout-center-min)); }
-.right { min-inline-size: min(100%, var(--pw-component-workbench-layout-right-min)); }
+:host { display: block; min-width: 0; --workbench-side-min: 240px; }
+.shell { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--pw-space-lg); align-items: start; }
+.column { min-width: 0; display: grid; gap: var(--pw-space-lg); }
+@media (min-width: 600px) and (max-width: 839px) {
+  .shell { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.35fr); }
+  .right { grid-column: 1 / -1; }
+}
+@media (min-width: 840px) {
+  .shell { grid-template-columns: minmax(var(--workbench-side-min), 0.85fr) minmax(0, 1.8fr) minmax(var(--workbench-side-min), 1fr); }
+  .right { grid-column: auto; }
+}

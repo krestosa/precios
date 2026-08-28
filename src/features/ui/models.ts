@@ -12,6 +12,9 @@ import type {
 } from '../../domain/contracts';
 
 export type UiLoadStatus = 'empty' | 'loading' | 'ready' | 'error';
+export type ProcessingState = 'queued' | 'processing' | 'ready' | 'warning' | 'error';
+export type WorkbookSheetVisibility = 'visible' | 'hidden' | 'veryHidden';
+export type SheetSupportStatus = 'unknown' | 'supported' | 'unsupported';
 export type PreviewMode = 'original' | 'result' | 'overlay';
 export type FontUiStatus = 'installed' | 'uploaded' | 'missing' | 'mismatch';
 export type LayoutIssueKind = 'overflow' | 'alignment' | 'missing-font';
@@ -22,11 +25,34 @@ export interface SourceCapabilityView {
   readonly xls: boolean;
 }
 
+export interface WorkbookSheetView {
+  readonly name: string;
+  readonly index: number;
+  readonly visibility: WorkbookSheetVisibility;
+  readonly supportStatus?: SheetSupportStatus;
+  readonly message?: string;
+}
+
+export interface WorkbookSheetSummaryView {
+  readonly rowCount: number;
+  readonly columnCount: number;
+  readonly normalGroupCount: number;
+  readonly eminentGroupCount?: number;
+  readonly warnings?: readonly string[];
+}
+
 export interface PriceSourceView {
   readonly status: UiLoadStatus;
   readonly fileName?: string;
   readonly capabilities: SourceCapabilityView;
   readonly message?: string;
+  readonly sheets?: readonly WorkbookSheetView[];
+  readonly selectedSheetName?: string;
+  readonly suggestedSheetName?: string;
+  readonly sheetSelectionRequired?: boolean;
+  readonly sheetProcessingState?: ProcessingState;
+  readonly sheetMessage?: string;
+  readonly selectedSheetSummary?: WorkbookSheetSummaryView;
 }
 
 export interface PreviewAsset {
@@ -53,8 +79,11 @@ export interface LayoutIssueView {
 
 export interface FontView {
   readonly id: string;
-  readonly record: FontRecord;
-  readonly uiStatus: FontUiStatus;
+  readonly displayName: string;
+  readonly processingState: ProcessingState;
+  readonly message?: string;
+  readonly record?: FontRecord;
+  readonly uiStatus?: FontUiStatus;
   readonly requiredBy?: readonly string[];
 }
 
@@ -67,6 +96,8 @@ export interface FilePriceView {
 export interface WorkbenchFileView {
   readonly id: string;
   readonly fileName: string;
+  readonly processingState: ProcessingState;
+  readonly processingMessage?: string;
   readonly selected?: boolean;
   readonly detectedLocal?: string;
   readonly match?: MatchResult;
@@ -82,7 +113,7 @@ export interface WorkbenchFileView {
   readonly trace?: FileTrace;
   readonly warnings?: readonly string[];
   readonly errors?: readonly string[];
-  readonly exportable: boolean;
+  readonly exportable?: boolean;
 }
 
 export interface WorkbenchProgressView {

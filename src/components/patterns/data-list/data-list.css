@@ -1,9 +1,16 @@
 :host { display: block; }
-ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--pw-component-data-list-gap); }
-button { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--pw-semantic-space-xs) var(--pw-semantic-space-md); text-align: left; border: var(--pw-semantic-size-border) solid var(--pw-semantic-color-scheme-outline-variant); border-radius: var(--pw-component-data-list-shape); padding: var(--pw-component-data-list-padding); background: var(--pw-semantic-color-scheme-surface); color: var(--pw-semantic-color-scheme-on-surface); cursor: pointer; }
-button[aria-current='true'] { border-color: var(--pw-semantic-color-scheme-primary); box-shadow: inset var(--pw-semantic-size-border-strong) 0 0 var(--pw-semantic-color-scheme-primary); }
-button:focus-visible { outline: var(--pw-semantic-focus-width) solid var(--pw-semantic-focus-color); outline-offset: var(--pw-semantic-focus-outward-offset); }
+ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--pw-space-sm); }
+button { min-height: var(--pw-control-min-target); width: 100%; position: relative; isolation: isolate; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--pw-space-xs) var(--pw-space-md); text-align: left; border: var(--pw-border-width) solid var(--pw-color-outline); border-radius: var(--pw-shape-md); padding: var(--pw-space-md); background: var(--pw-color-surface-container-lowest); color: var(--pw-color-on-surface); cursor: pointer; }
+button::before { content: ''; position: absolute; inset: 0; background: currentColor; opacity: 0; pointer-events: none; transition: opacity var(--pw-motion-quick) var(--pw-easing-standard); }
+button > * { position: relative; z-index: 1; }
+button:hover::before { opacity: var(--pw-state-hover); }
+button:focus-visible::before { opacity: var(--pw-state-focus); }
+button:active::before { opacity: var(--pw-state-pressed); }
+button[aria-current='true'] { border-color: var(--pw-color-primary); background: var(--pw-color-primary-container); color: var(--pw-color-on-primary-container); box-shadow: inset var(--pw-border-strong) 0 0 var(--pw-color-primary); }
+button[aria-current='true'] small, button[aria-current='true'] .meta { color: inherit; }
+button:focus-visible { outline: var(--pw-focus-width) solid var(--pw-color-primary); outline-offset: var(--pw-focus-outward-offset); }
 strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-small { color: var(--pw-semantic-color-scheme-on-surface-variant); font: var(--pw-component-data-list-type); letter-spacing: var(--pw-component-data-list-type-letter-spacing); overflow-wrap: anywhere; }
-.meta { grid-row: 1 / span 2; grid-column: 2; align-self: start; font: var(--pw-semantic-type-label-medium); letter-spacing: var(--pw-semantic-type-label-medium-letter-spacing); color: var(--pw-semantic-color-scheme-on-surface-variant); white-space: nowrap; }
+small { color: var(--pw-color-on-surface-variant); font: var(--pw-type-body-small); letter-spacing: var(--pw-type-body-small-letter-spacing); overflow-wrap: anywhere; }
+.meta { grid-row: 1 / span 2; grid-column: 2; align-self: start; font: var(--pw-type-label-medium); letter-spacing: var(--pw-type-label-medium-letter-spacing); color: var(--pw-color-on-surface-variant); white-space: nowrap; }
 small:empty, .meta:empty { display: none; }
+@media (prefers-reduced-motion: reduce) { button::before { transition: none; } }

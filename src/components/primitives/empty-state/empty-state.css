@@ -1,5 +1,5 @@
 :host { display: block; }
-.empty { padding: var(--pw-component-empty-state-padding); border: var(--pw-semantic-size-border) dashed var(--pw-semantic-color-scheme-outline-variant); border-radius: var(--pw-component-empty-state-shape); text-align: center; color: var(--pw-semantic-color-scheme-on-surface-variant); background: var(--pw-semantic-color-scheme-background); }
-strong { display: block; color: var(--pw-semantic-color-scheme-on-surface); margin-bottom: var(--pw-semantic-space-xs); }
-p { margin: 0; font: var(--pw-component-empty-state-type); letter-spacing: var(--pw-component-empty-state-type-letter-spacing); }
+.empty { padding: var(--pw-space-xl); border: var(--pw-border-width) dashed var(--pw-color-outline-variant); border-radius: var(--pw-shape-md); text-align: center; color: var(--pw-color-on-surface-variant); background: var(--pw-color-surface-container-lowest); }
+strong { display: block; color: var(--pw-color-on-surface); margin-bottom: var(--pw-space-xs); }
+p { margin: 0; font: var(--pw-type-body-small); letter-spacing: var(--pw-type-body-small-letter-spacing); }
 p[hidden], .content:empty { display: none; }

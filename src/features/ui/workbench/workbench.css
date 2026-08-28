@@ -1,1 +1,1 @@
-:host { display: block; min-height: 100%; box-sizing: border-box; color: var(--pw-semantic-color-scheme-on-background); background: var(--pw-semantic-color-scheme-background); font: var(--pw-component-workbench-type); letter-spacing: var(--pw-component-workbench-type-letter-spacing); }
+:host { display: block; min-height: 100%; box-sizing: border-box; color: var(--pw-color-on-surface); background: var(--pw-color-background); font: var(--pw-type-body-medium); letter-spacing: var(--pw-type-body-medium-letter-spacing); }

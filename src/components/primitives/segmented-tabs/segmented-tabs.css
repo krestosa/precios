@@ -1,5 +1,11 @@
 :host { display: inline-flex; max-width: 100%; }
-.tabs { display: inline-flex; max-width: 100%; padding: var(--pw-component-segmented-tabs-padding); border: var(--pw-semantic-size-border) solid var(--pw-semantic-color-scheme-outline-variant); border-radius: var(--pw-component-segmented-tabs-shape); background: var(--pw-semantic-color-scheme-surface-variant); }
-button { border: 0; border-radius: var(--pw-component-segmented-tabs-item-shape); padding: var(--pw-component-segmented-tabs-item-pad-block) var(--pw-component-segmented-tabs-item-pad-inline); background: transparent; color: var(--pw-semantic-color-scheme-on-surface-variant); font: var(--pw-component-segmented-tabs-type); letter-spacing: var(--pw-component-segmented-tabs-type-letter-spacing); cursor: pointer; }
-button[aria-selected='true'] { color: var(--pw-semantic-color-scheme-on-surface); background: var(--pw-semantic-color-scheme-surface); box-shadow: var(--pw-component-segmented-tabs-elevation); }
-button:focus-visible { outline: var(--pw-semantic-focus-width) solid var(--pw-semantic-focus-color); outline-offset: var(--pw-semantic-focus-inward-offset); }
+.tabs { display: inline-flex; max-width: 100%; padding: var(--pw-space-xs); border: var(--pw-border-width) solid var(--pw-color-outline); border-radius: var(--pw-shape-md); background: var(--pw-color-surface-container-base); }
+button { min-height: var(--pw-control-min-target); position: relative; isolation: isolate; overflow: hidden; border: 0; border-radius: var(--pw-shape-sm); padding: var(--pw-space-sm) var(--pw-space-md); background: transparent; color: var(--pw-color-on-surface-variant); font: var(--pw-type-label-medium); letter-spacing: var(--pw-type-label-medium-letter-spacing); cursor: pointer; }
+button::before { content: ''; position: absolute; inset: 0; background: currentColor; opacity: 0; pointer-events: none; transition: opacity var(--pw-motion-quick) var(--pw-easing-standard); }
+button > span { position: relative; z-index: 1; }
+button:hover::before { opacity: var(--pw-state-hover); }
+button:focus-visible::before { opacity: var(--pw-state-focus); }
+button:active::before { opacity: var(--pw-state-pressed); }
+button[aria-selected='true'] { color: var(--pw-color-on-surface); background: var(--pw-color-surface-container-highest); box-shadow: var(--pw-elevation-level1); }
+button:focus-visible { outline: var(--pw-focus-width) solid var(--pw-color-primary); outline-offset: var(--pw-focus-inward-offset); }
+@media (prefers-reduced-motion: reduce) { button::before { transition: none; } }
