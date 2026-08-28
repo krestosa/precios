@@ -143,6 +143,14 @@ function transformationIssues(input: SvgFilePreflightInput): readonly PreflightI
       message: 'La transformación SVG terminó con error para este archivo.',
     }, input.fileId, input.fileName)];
   }
+  const classification = input.result.analysis.engineClassification;
+  if (classification === 'editable-placeholder' || classification === 'split-text-placeholder') {
+    return [scopedIssue({
+      severity: 'ERROR',
+      code: 'svg.transformation.result-missing',
+      message: 'El SVG requiere reemplazo de precios pero no existe contenido procesado para preview/export.',
+    }, input.fileId, input.fileName)];
+  }
   return [];
 }
 
