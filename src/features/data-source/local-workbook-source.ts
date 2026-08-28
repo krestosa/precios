@@ -58,7 +58,9 @@ export interface LocalWorkbookOpenResult {
   readonly selectSheet: (sheetName: string) => LocalSheetSelectionResult;
 }
 
-export type LocalWorkbookLoadResult = LocalWorkbookOpenResult;
+export interface LocalWorkbookLoadResult extends LocalWorkbookOpenResult {
+  readonly snapshots: readonly SourceSnapshot[];
+}
 
 const MAX_WORKBOOK_CELLS = 1_000_000;
 
@@ -458,4 +460,10 @@ export function openLocalWorkbook(input: LocalWorkbookInput): LocalWorkbookOpenR
   }
 }
 
-export const loadLocalWorkbook = openLocalWorkbook;
+export function loadLocalWorkbook(input: LocalWorkbookInput): LocalWorkbookLoadResult {
+  const opened = openLocalWorkbook(input);
+  return {
+    ...opened,
+    snapshots: opened.format === 'csv' && opened.csvSnapshot !== undefined ? [opened.csvSnapshot] : [],
+  };
+}
