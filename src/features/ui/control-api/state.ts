@@ -71,6 +71,8 @@ export function createPreciosAppState(
   const exportableCount = model.files.filter((file) => file.exportable).length;
   const busy =
     model.source.status === 'loading'
+    || model.source.sheetProcessingState === 'processing'
+    || model.source.sheetProcessingState === 'queued'
     || model.svgLoadStatus === 'loading'
     || model.fontLoadStatus === 'loading'
     || Boolean(model.progress && model.progress.value < model.progress.max);
@@ -83,6 +85,11 @@ export function createPreciosAppState(
       status: model.source.status,
       fileName: model.source.fileName ?? null,
       capabilities: { ...model.source.capabilities },
+      sheets: (model.source.sheets ?? []).map((sheet) => ({ ...sheet })),
+      selectedSheetName: model.source.selectedSheetName ?? null,
+      sheetSelectionRequired: model.source.sheetSelectionRequired ?? false,
+      sheetProcessingState: model.source.sheetProcessingState ?? null,
+      selectedSheetSummary: model.source.selectedSheetSummary ? { ...model.source.selectedSheetSummary } : null,
     },
     counts: {
       priceSources: model.source.fileName ? 1 : 0,
@@ -136,7 +143,7 @@ export function createPreciosAppState(
     export: {
       exportableCount,
       nonExportableCount: model.files.length - exportableCount,
-      selectedFileExportable: selected ? selected.exportable : null,
+      selectedFileExportable: selected?.exportable ?? null,
     },
     warnings: currentWarnings(model, selected),
     errors: currentErrors(model, selected),
