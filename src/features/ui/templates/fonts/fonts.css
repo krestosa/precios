@@ -5,4 +5,5 @@
 .font-text { min-width: 0; }
 .font-text strong { display: block; overflow-wrap: anywhere; }
 .font-text span { color: var(--pw-color-on-surface-variant); font: var(--pw-type-body-small); letter-spacing: var(--pw-type-body-small-letter-spacing); }
+.font-status { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--pw-space-xs); }
 [hidden] { display: none !important; }

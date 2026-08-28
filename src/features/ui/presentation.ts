@@ -1,6 +1,25 @@
 import type { MatchCandidate, PriceField, SourceLoc } from '../../domain/contracts';
 import type { StatusTone } from '../../components';
-import type { FontUiStatus, LayoutIssueView, WorkbenchFileView } from './models';
+import type { FontUiStatus, LayoutIssueView, ProcessingState, WorkbenchFileView } from './models';
+
+export function processingTone(state: ProcessingState): StatusTone {
+  if (state === 'ready') return 'success';
+  if (state === 'warning') return 'warning';
+  if (state === 'error') return 'danger';
+  if (state === 'processing') return 'info';
+  return 'neutral';
+}
+
+export function processingLabel(state: ProcessingState): string {
+  const labels: Record<ProcessingState, string> = {
+    queued: 'En cola',
+    processing: 'Procesando',
+    ready: 'Listo',
+    warning: 'Listo con advertencias',
+    error: 'Error',
+  };
+  return labels[state];
+}
 
 export function matchMethodLabel(method: MatchCandidate['method']): string {
   const labels: Record<MatchCandidate['method'], string> = {

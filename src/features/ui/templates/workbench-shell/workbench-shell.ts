@@ -4,9 +4,9 @@ import '../../../../components';
 import '../../../../layout';
 import { mountStaticShadow, requiredElement } from '../../../../components/shadow';
 import type { DataListItem, ProgressBar } from '../../../../components';
-import type { WorkbenchViewModel } from '../../models';
+import type { WorkbenchFileView, WorkbenchViewModel } from '../../models';
 import type { WorkbenchUiState } from '../../ui-store';
-import { derivedLayoutIssues, fileMatchSummary, preflightLabel, queueErrorCount, queueWarningCount } from '../../presentation';
+import { derivedLayoutIssues, fileMatchSummary, preflightLabel, processingLabel, queueErrorCount, queueWarningCount } from '../../presentation';
 import type { SourceQueueTemplate } from '../source-queue';
 import type { FontsTemplate } from '../fonts';
 import type { ReviewTemplate } from '../review';
@@ -15,6 +15,25 @@ import type { ExportTemplate } from '../export';
 import '../source-queue'; import '../fonts'; import '../review'; import '../preflight'; import '../export';
 
 export interface WorkbenchShellView { readonly model: WorkbenchViewModel; readonly uiState: WorkbenchUiState; }
+
+function queueSecondary(file: WorkbenchFileView): string {
+  if (file.processingState === 'queued' || file.processingState === 'processing' || file.processingState === 'error') {
+    return file.processingMessage ?? processingLabel(file.processingState);
+  }
+  return [
+    file.processingMessage,
+    file.detectedLocal ?? 'Local sin detectar',
+    fileMatchSummary(file),
+    file.classification ?? 'Sin clasificar',
+    `Fuente: ${file.sourceFileName ?? 'no informada'}`,
+  ].filter((part): part is string => Boolean(part)).join(' · ');
+}
+
+function queueMeta(file: WorkbenchFileView): string {
+  const processing = processingLabel(file.processingState);
+  if (file.processingState === 'queued' || file.processingState === 'processing' || file.processingState === 'error') return processing;
+  return `${processing} · ${preflightLabel(file)} · ${queueWarningCount(file)}W/${queueErrorCount(file)}E`;
+}
 
 export class WorkbenchShellTemplate extends HTMLElement {
   private readonly progress: ProgressBar;
@@ -40,7 +59,13 @@ export class WorkbenchShellTemplate extends HTMLElement {
     const view = this.viewValue; if (!view) return;
     const { model, uiState } = view;
     const selected = model.files.find((file) => file.id === uiState.selectedFileId) ?? model.files.find((file) => file.selected) ?? model.files[0];
-    const items: readonly DataListItem[] = model.files.map((file) => ({ id: file.id, primary: file.fileName, secondary: `${file.detectedLocal ?? 'Local sin detectar'} · ${fileMatchSummary(file)} · ${file.classification ?? 'Sin clasificar'} · Fuente: ${file.sourceFileName ?? 'no informada'}`, meta: `${preflightLabel(file)} · ${queueWarningCount(file)}W/${queueErrorCount(file)}E`, selected: selected?.id === file.id }));
+    const items: readonly DataListItem[] = model.files.map((file) => ({
+      id: file.id,
+      primary: file.fileName,
+      secondary: queueSecondary(file),
+      meta: queueMeta(file),
+      selected: selected?.id === file.id,
+    }));
     this.sourceQueue.view = { source: model.source, svgLoadStatus: model.svgLoadStatus, items };
     this.fonts.fonts = model.fonts; this.fonts.loadStatus = model.fontLoadStatus;
     this.review.file = selected; this.review.uiState = uiState; this.review.layoutIssues = selected ? derivedLayoutIssues(selected) : [];

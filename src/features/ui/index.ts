@@ -4,6 +4,7 @@ export { dispatchWorkbenchEvent, type WorkbenchEventMap, type WorkbenchEventName
 export {
   EMPTY_WORKBENCH_MODEL,
   type UiLoadStatus,
+  type ProcessingState,
   type PreviewMode,
   type FontUiStatus,
   type LayoutIssueKind,

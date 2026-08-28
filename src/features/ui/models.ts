@@ -12,6 +12,7 @@ import type {
 } from '../../domain/contracts';
 
 export type UiLoadStatus = 'empty' | 'loading' | 'ready' | 'error';
+export type ProcessingState = 'queued' | 'processing' | 'ready' | 'warning' | 'error';
 export type PreviewMode = 'original' | 'result' | 'overlay';
 export type FontUiStatus = 'installed' | 'uploaded' | 'missing' | 'mismatch';
 export type LayoutIssueKind = 'overflow' | 'alignment' | 'missing-font';
@@ -53,8 +54,11 @@ export interface LayoutIssueView {
 
 export interface FontView {
   readonly id: string;
-  readonly record: FontRecord;
-  readonly uiStatus: FontUiStatus;
+  readonly displayName: string;
+  readonly processingState: ProcessingState;
+  readonly message?: string;
+  readonly record?: FontRecord;
+  readonly uiStatus?: FontUiStatus;
   readonly requiredBy?: readonly string[];
 }
 
@@ -67,6 +71,8 @@ export interface FilePriceView {
 export interface WorkbenchFileView {
   readonly id: string;
   readonly fileName: string;
+  readonly processingState: ProcessingState;
+  readonly processingMessage?: string;
   readonly selected?: boolean;
   readonly detectedLocal?: string;
   readonly match?: MatchResult;
@@ -82,7 +88,7 @@ export interface WorkbenchFileView {
   readonly trace?: FileTrace;
   readonly warnings?: readonly string[];
   readonly errors?: readonly string[];
-  readonly exportable: boolean;
+  readonly exportable?: boolean;
 }
 
 export interface WorkbenchProgressView {

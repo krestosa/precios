@@ -1,5 +1,5 @@
 :host { display: grid; gap: var(--pw-space-md); }
-.stack { display: grid; gap: var(--pw-space-md); }
+.stack, .queue-feedback { display: grid; gap: var(--pw-space-md); }
 .source-file { font: var(--pw-type-body-small); letter-spacing: var(--pw-type-body-small-letter-spacing); }
 .message { color: var(--pw-color-on-surface-variant); margin-top: var(--pw-space-xs); }
 [hidden] { display: none !important; }
