@@ -1,5 +1,6 @@
 import './tokens/tokens.css';
 import './features/ui/workbench';
+import { installAppControlAdapter, installAppRuntimeController } from './app';
 import { installPreciosAppControl } from './features/ui/control-api';
 import type { PriceWorkbench } from './features/ui/workbench';
 
@@ -17,4 +18,6 @@ if (workbench === null) {
 }
 
 installPreciosAppControl(workbench);
+const runtime = installAppRuntimeController(workbench);
+installAppControlAdapter(workbench, runtime);
 appRoot.dataset.bootstrap = 'ready';
