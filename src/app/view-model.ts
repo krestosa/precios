@@ -126,9 +126,10 @@ export function fileView(file: RuntimeFile, source: RuntimeSource | null, output
   const errors = source !== null && outputIssue?.severity === 'ERROR' ? [outputIssue.message] : [];
   const outputName = output?.outputName ?? file.fileName;
   const outputId = output?.id ?? file.id;
+  const isPrimaryDerivedOutput = output !== undefined && file.outputs[0]?.id === output.id;
   return {
     id: outputId,
-    fileName: outputName,
+    fileName: isPrimaryDerivedOutput ? file.fileName : outputName,
     sourceArtworkFileName: file.fileName,
     processingState: completedProcessingState(warnings, errors),
     ...(file.identity.sourceLocal === null ? {} : { detectedLocal: file.identity.sourceLocal }),
