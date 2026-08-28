@@ -119,6 +119,22 @@ async function ensureTests() {
   return testFiles;
 }
 
+function vitestFileCount(output) {
+  const withoutAnsi = output.replace(/\u001b\[[0-?]*[ -/]*[@-~]/gu, '');
+  const summary = withoutAnsi.split('\n').find((line) => /^\s*Test Files\s+/u.test(line));
+  if (summary === undefined) {
+    throw new Error('Vitest terminó sin informar el conteo de archivos ejecutados.');
+  }
+
+  const total = summary.match(/\((\d+)\)\s*$/u)?.[1]
+    ?? summary.match(/^\s*Test Files\s+(\d+)\s+passed\s*$/u)?.[1];
+  const count = total === undefined ? Number.NaN : Number(total);
+  if (!Number.isInteger(count) || count <= 0) {
+    throw new Error(`No se pudo interpretar el conteo real de archivos Vitest desde: ${summary.trim()}`);
+  }
+  return count;
+}
+
 async function ensureDist() {
   const stat = await fs.stat(distDir).catch(() => null);
   if (!stat?.isDirectory()) {
@@ -257,7 +273,7 @@ async function main() {
   await fs.writeFile(path.join(logsDir, 'versions.log'), `${versions.join('\n')}\n`, 'utf8');
 
   const testFiles = await ensureTests();
-  console.log(`Suite QA detectada: ${testFiles.length} archivo(s).`);
+  console.log(`Suite QA disponible bajo tests/: ${testFiles.length} archivo(s).`);
 
   const initialLock = await readLockInfo();
   if (initialLock.exists && !initialLock.valid) {
@@ -278,7 +294,9 @@ async function main() {
   }
 
   await runCommand('typecheck', npmCommand, ['run', 'typecheck']);
-  await runCommand('tests', npmCommand, ['run', 'test:run']);
+  const tests = await runCommand('tests', npmCommand, ['run', 'test:run']);
+  const executedTestFileCount = vitestFileCount(tests.output);
+  console.log(`Vitest ejecutó ${executedTestFileCount} archivo(s) de prueba.`);
   await runCommand('build', npmCommand, ['run', 'build']);
   await runCommand('upload-feedback-probe', process.execPath, [path.join('scripts', 'upload-feedback-probe.mjs')]);
 
@@ -319,7 +337,7 @@ async function main() {
       dependencyTreeExitCode: dependencyTree.exitCode,
     },
     tests: {
-      fileCount: testFiles.length,
+      fileCount: executedTestFileCount,
     },
     dist: {
       fileCount: distFiles.length,
