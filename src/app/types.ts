@@ -19,14 +19,42 @@ export interface RuntimePriceAlternative {
   readonly eminent: PriceField | null;
 }
 
+export type RuntimeSourceScope = 'generic' | 'local-specific';
+
+export interface RuntimeSourceIdentity {
+  readonly actionName: string | null;
+  readonly actionCanonical: string | null;
+  readonly format: string | null;
+  readonly pieceIndex: number | null;
+  readonly sourceLocal: string | null;
+  readonly sourceLocalCanonical: string | null;
+  readonly sourceScope: RuntimeSourceScope;
+}
+
+export interface RuntimeOutput {
+  readonly id: string;
+  readonly outputName: string;
+  readonly targetKey: string;
+  readonly pricingGroup: string | null;
+  readonly pricingGroupCanonical: string | null;
+  readonly scopeLabels: readonly string[];
+  readonly pricing: ReconciledPricingRecord | null;
+  readonly issue?: PreflightIssue;
+  overridden: boolean;
+  generation?: SvgEngineGenerationResult;
+  preflight?: FilePreflight;
+}
+
 export interface RuntimeFile {
   readonly id: string;
   readonly fileName: string;
   readonly sourceSvg: string;
   readonly analysis: SvgAnalysisResult;
+  identity: RuntimeSourceIdentity;
   match: MatchResult;
   generation?: SvgEngineGenerationResult;
   preflight?: FilePreflight;
+  outputs: RuntimeOutput[];
   priceAlternatives: readonly ReconciledPricingRecord[];
   priceIssue?: PreflightIssue;
 }
@@ -57,10 +85,21 @@ export interface AppRuntimeSnapshot {
   readonly files: readonly {
     readonly id: string;
     readonly fileName: string;
+    readonly sourceFileName: string;
+    readonly sourceScope: RuntimeSourceScope;
+    readonly sourceLocal: string | null;
     readonly classification: string;
     readonly engineClassification: string;
     readonly matchStatus: string;
     readonly pricing: readonly RuntimePriceAlternative[];
+    readonly targets: readonly {
+      readonly id: string;
+      readonly pricingGroup: string | null;
+      readonly scopes: readonly string[];
+      readonly overridden: boolean;
+      readonly blocking: boolean | null;
+      readonly generationStatus: string | null;
+    }[];
     readonly preflightBlocking: boolean | null;
     readonly generationStatus: string | null;
   }[];

@@ -17,6 +17,14 @@ function selectedFile(model: WorkbenchViewModel, ui: WorkbenchUiState): Workbenc
   );
 }
 
+function sourceSvgCount(model: WorkbenchViewModel): number {
+  const sourceNames = new Set<string>();
+  for (const file of model.files) {
+    sourceNames.add(file.sourceArtworkFileName ?? file.fileName);
+  }
+  return sourceNames.size;
+}
+
 function matchMethod(match: MatchResult): string | null {
   return 'method' in match ? match.method : null;
 }
@@ -93,7 +101,7 @@ export function createPreciosAppState(
     },
     counts: {
       priceSources: model.source.fileName ? 1 : 0,
-      svgFiles: model.files.length,
+      svgFiles: sourceSvgCount(model),
       fonts: model.fonts.length,
       exportableFiles: exportableCount,
     },
@@ -103,7 +111,7 @@ export function createPreciosAppState(
     },
     view: {
       selectedFileId: selected?.id ?? null,
-      selectedFileName: selected?.fileName ?? null,
+      selectedFileName: selected?.sourceArtworkFileName ?? selected?.fileName ?? null,
       detailsOpen: ui.detailsOpen,
       previewMode: ui.previewMode,
       zoom: ui.zoom,
@@ -155,7 +163,6 @@ export function createPreciosAppDiagnostics(state: PreciosAppStateSnapshot): Pre
   return {
     contractVersion: PRECIOS_APP_CONTROL_VERSION,
     ready: state.ready,
-    busy: state.busy,
     selectedFileId: state.view.selectedFileId,
     sourceStatus: state.source.status,
     svgStatus: state.loads.svgStatus,
@@ -168,5 +175,6 @@ export function createPreciosAppDiagnostics(state: PreciosAppStateSnapshot): Pre
     warnings: [...state.warnings],
     errors: [...state.errors],
     commands: [...state.commands],
+    busy: state.busy,
   };
 }

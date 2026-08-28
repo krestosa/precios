@@ -18,7 +18,7 @@ export interface FileTrace {
   };
   readonly local: {
     readonly raw?: string;
-    readonly canonical?: string;
+    readonly canonical?: string | undefined;
   };
   readonly match: {
     readonly method?: MatchMethod;

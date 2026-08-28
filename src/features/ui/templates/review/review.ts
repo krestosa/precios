@@ -26,6 +26,8 @@ export class ReviewTemplate extends HTMLElement {
   private readonly select: HTMLSelectElement;
   private readonly applySession: UiButton;
   private readonly applyBatch: UiButton;
+  private readonly targetsEmpty: HTMLElement;
+  private readonly targetList: HTMLUListElement;
   private readonly issuesEmpty: HTMLElement;
   private readonly issueList: HTMLUListElement;
   private readonly issueTemplate: HTMLTemplateElement;
@@ -48,6 +50,7 @@ export class ReviewTemplate extends HTMLElement {
     this.matchEmpty = requiredElement(root, '.match-empty'); this.matchResolved = requiredElement(root, '.match-resolved'); this.matchReview = requiredElement(root, '.match-review');
     this.candidateList = requiredElement(root, '.candidate-list'); this.candidateTemplate = requiredElement(root, '.candidate-template'); this.optionTemplate = requiredElement(root, '.option-template');
     this.select = requiredElement(root, '#candidate-select'); this.applySession = requiredElement(root, '.apply-session'); this.applyBatch = requiredElement(root, '.apply-batch');
+    this.targetsEmpty = requiredElement(root, '.targets-empty'); this.targetList = requiredElement(root, '.derived-target-list');
     this.issuesEmpty = requiredElement(root, '.issues-empty'); this.issueList = requiredElement(root, '.issue-list'); this.issueTemplate = requiredElement(root, '.issue-template');
     this.tabs = requiredElement(root, '.preview-tabs'); this.zoomNode = requiredElement(root, '.zoom'); this.previewEmpty = requiredElement(root, '.preview-empty');
     this.viewport = requiredElement(root, '.preview-viewport'); this.previewContent = requiredElement(root, '.preview-content'); this.iframe = requiredElement(root, 'iframe'); this.image = requiredElement(root, 'img');
@@ -81,8 +84,12 @@ export class ReviewTemplate extends HTMLElement {
     if (!file || !state) return;
     this.filename.textContent = file.fileName;
     this.preflight.tone = preflightTone(file); this.preflight.label = preflightLabel(file);
-    this.setSummary('local', file.detectedLocal ?? 'Sin detectar'); this.setSummary('matching', fileMatchSummary(file)); this.setSummary('classification', file.classification ?? 'Sin clasificar');
-    this.syncMatching(file, state.matchChoiceByFile[file.id] ?? ''); this.syncPrice('.normal-value', '.normal-provenance', file.prices?.normal); this.syncPrice('.eminent-value', '.eminent-provenance', file.prices?.eminent);
+    this.setSummary('source-scope', file.sourceScope === 'local-specific' ? 'Local específica' : file.sourceScope === 'generic' ? 'General / genérica' : 'Sin resolver');
+    this.setSummary('source-local', file.sourceScope === 'generic' ? 'No aplica' : file.sourceLocal ?? 'No informado');
+    const scopes = file.targetScopes?.length ? ` · ${file.targetScopes.join(' / ')}` : '';
+    this.setSummary('output-target', file.rawGroup ? `${file.rawGroup}${scopes}` : 'Sin target');
+    this.setSummary('matching', fileMatchSummary(file)); this.setSummary('classification', file.classification ?? 'Sin clasificar');
+    this.syncMatching(file, state.matchChoiceByFile[file.id] ?? ''); this.syncDerivedTargets(file); this.syncPrice('.normal-value', '.normal-provenance', file.prices?.normal); this.syncPrice('.eminent-value', '.eminent-provenance', file.prices?.eminent);
     this.syncValidation(file); this.syncIssues(); this.syncPreview(file, state.previewMode, state.zoom);
   }
 
@@ -90,7 +97,7 @@ export class ReviewTemplate extends HTMLElement {
     const match = file.match;
     this.matchEmpty.hidden = true; this.matchResolved.hidden = true; this.matchReview.hidden = true;
     if (!match) { this.matchEmpty.hidden = false; this.matchEmpty.heading = 'Matching pendiente'; this.matchEmpty.message = 'El adaptador de matching todavía no reportó un resultado.'; return; }
-    if (match.status === 'unmatched') { this.matchEmpty.hidden = false; this.matchEmpty.heading = 'Sin coincidencia'; this.matchEmpty.message = 'No se seleccionó ningún local. Se requiere una decisión externa antes de resolver precios.'; return; }
+    if (match.status === 'unmatched') { this.matchEmpty.hidden = false; this.matchEmpty.heading = 'Sin coincidencia'; this.matchEmpty.message = 'No se encontró una acción compatible en la matriz seleccionada.'; return; }
     if (match.status === 'matched') {
       this.matchResolved.hidden = false; requiredElement<HTMLElement>(this.shadowRoot!, '.match-meta').textContent = `${matchMethodLabel(match.method)} · ${confidenceLabel(match.confidence)}`;
       requiredElement<HTMLElement>(this.shadowRoot!, '.match-label').textContent = match.selected.label; requiredElement<HTMLElement>(this.shadowRoot!, '.match-canonical').textContent = match.selected.canonical ?? ''; return;
@@ -115,6 +122,20 @@ export class ReviewTemplate extends HTMLElement {
       const option = requiredElement<HTMLOptionElement>(optionFragment, 'option'); option.value = candidate.id; option.textContent = `${candidate.label} · ${confidenceLabel(candidate.confidence)}`; this.select.append(optionFragment);
     });
     this.select.value = selectedCandidate; const disabled = selectedCandidate.length === 0; this.applySession.disabled = disabled; this.applyBatch.disabled = disabled;
+  }
+
+  private syncDerivedTargets(file: WorkbenchFileView): void {
+    const targets = file.derivedTargets ?? [];
+    this.targetsEmpty.hidden = targets.length > 0;
+    this.targetList.hidden = targets.length === 0;
+    this.targetList.replaceChildren();
+    targets.forEach((target) => {
+      const item = document.createElement('li');
+      const scope = target.scopes.length > 0 ? ` · ${target.scopes.join(' / ')}` : '';
+      const state = target.overridden ? ' · reemplazado por source local específico' : target.blocking ? ' · bloqueado' : ' · exportable tras preflight';
+      item.textContent = `${target.pricingGroup ?? 'Sin grupo'}${scope} · NORMAL ${formatPrice(target.normal)} · ÉMINENT ${formatPrice(target.eminent)}${state}`;
+      this.targetList.append(item);
+    });
   }
 
   private syncPrice(valueSelector: string, provenanceSelector: string, field: PriceField | undefined): void {
