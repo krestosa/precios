@@ -84,9 +84,8 @@ export function fileTrace(file: RuntimeFile): FileTrace {
   };
 }
 
-function completedProcessingState(file: RuntimeFile, warnings: readonly string[], errors: readonly string[]): ProcessingState {
-  if (errors.length > 0 || file.preflight?.blocking) return 'error';
-  if (warnings.length > 0 || file.preflight?.issues.some((issue) => issue.severity === 'WARNING')) return 'warning';
+function completedProcessingState(warnings: readonly string[], errors: readonly string[]): ProcessingState {
+  if (warnings.length > 0 || errors.length > 0) return 'warning';
   return 'ready';
 }
 
@@ -102,7 +101,7 @@ export function fileView(file: RuntimeFile, source: RuntimeSource | null): Workb
   return {
     id: file.id,
     fileName: file.fileName,
-    processingState: completedProcessingState(file, warnings, errors),
+    processingState: completedProcessingState(warnings, errors),
     detectedLocal: fileStem(file.fileName),
     classification: file.analysis.classification,
     ...(source === null
