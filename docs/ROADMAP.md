@@ -128,14 +128,13 @@ Color:
 Typography:
 
 - familias brand/plain;
-- weights regular/medium/bold;
+- weights regular `400`, medium `500`, bold `700`;
 - tracking base;
-- tamaños/line-heights base necesarios.
+- tamaños/line-heights base necesarios para construir exactamente 15 roles semánticos.
 
 Shape:
 
-- none, extra-small, small, medium, large, extra-large, full;
-- esquinas lógicas derivadas cuando corresponda.
+- valores base únicamente para los siete roles canónicos: none `0px`, extraSmall `4px`, small `8px`, medium `12px`, large `16px`, extraLarge `28px`, full `50%`/equivalente web.
 
 State:
 
@@ -151,7 +150,7 @@ Motion:
 - un único esquema normal/utilitario;
 - durations 50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 700, 800, 900, 1000 ms;
 - curvas de timing standard, accelerate, decelerate y emphasized cuando correspondan;
-- no existe un catálogo paralelo de motion.
+- la curva emphasized no crea una familia adicional.
 
 Elevation/layout/sizing:
 
@@ -180,9 +179,15 @@ Color light/dark con idéntico árbol de roles:
 
 Typography:
 
-- 15 composites base: display/headline/title/body/label × large/medium/small;
+- exactamente 15 composites: display/headline/title/body/label × large/medium/small;
 - cada composite incluye fontFamily/fontSize/fontWeight/letterSpacing/lineHeight;
-- variante emphasized 1:1 disponible; prominent sólo si existe uso real.
+- se conservan las métricas/trackings ya definidos;
+- no existen roles tipográficos semánticos adicionales; variaciones de peso de componente usan foundation 400/500/700.
+
+Shape:
+
+- exactamente siete roles: none `0px`, extraSmall `4px`, small `8px`, medium `12px`, large `16px`, extraLarge `28px`, full `50%`/equivalente web;
+- logical corners sólo descomponen/aplican estos siete roles y no crean una escala paralela.
 
 Motion:
 
@@ -230,7 +235,7 @@ Cada unidad visual real debe mapear, según aplique:
 - focus;
 - motion.
 
-Component motion sólo puede aliasar/componer la escala de durations, las cuatro curvas de timing y las seis familias spring canónicas. No se crean catálogos de componentes no usados.
+Typography de componente consume los 15 roles semánticos o weights foundation 400/500/700. Shape sólo referencia/descompone los siete roles canónicos. Motion sólo aliasa/compone la escala de durations, las cuatro curvas de timing y las seis familias spring canónicas. No se crean catálogos de componentes no usados.
 
 ### Gate de aceptación W4
 
@@ -244,6 +249,10 @@ W4 no cierra hasta que se verifique simultáneamente:
 - cero referencias circulares;
 - cobertura foundation -> semantic -> component;
 - catálogo foundation+semantic mínimo completo, no subset decorativo;
+- inventario typography exacto de 15 roles: display/headline/title/body/label × large/medium/small y ningún rol semántico extra;
+- inventario shape exacto de siete roles y valores: none `0px`, extraSmall `4px`, small `8px`, medium `12px`, large `16px`, extraLarge `28px`, full `50%`/equivalente web;
+- logical corners no crean shapes adicionales;
+- un único esquema de motion con exactamente seis springs y los parámetros canónicos;
 - component tokens exhaustivos para cada componente real;
 - cero duplicación gratuita cuando existe alias válido;
 - `src/tokens/tokens.css` es derivación determinista 1:1;
@@ -252,9 +261,8 @@ W4 no cierra hasta que se verifique simultáneamente:
 - component CSS consume semantic/component custom properties;
 - no hay hex/rgb/hsl, spacing, radius, motion, elevation, typography, sizing o borders repetidos que deban provenir de tokens;
 - excepciones únicamente documentadas cuando sean intrínsecas a un asset externo;
-- motion contiene sólo durations 50..1000 ms, curvas standard/accelerate/decelerate/emphasized y los seis springs con parámetros exactos definidos arriba;
 - spatial sólo gobierna bounds/posición/shape y effects sólo color/opacity;
-- `prefers-reduced-motion` está implementado para motion/shape transitions;
+- `prefers-reduced-motion` está implementado;
 - no existen `.template.ts` ni `.styles.ts` como patrón arquitectónico;
 - no existen `css\`...\`` ni `html\`...\`` como fuente principal;
 - no existe Sass/SCSS;
@@ -264,7 +272,7 @@ W4 no cierra hasta que se verifique simultáneamente:
 
 ### No puede avanzar antes de cerrar
 
-No se puede declarar W4 terminado ni integrar la UI si falla cualquiera de los gates anteriores. En particular, no se acepta un catálogo parcial, un bridge CSS manual/divergente, motion fuera del esquema único ni componentes con hardcodes evitables.
+No se puede declarar W4 terminado ni integrar la UI si falla cualquiera de los gates anteriores. En particular, no se acepta un catálogo parcial, un bridge CSS manual/divergente, inventarios visuales fuera de los conjuntos canónicos ni componentes con hardcodes evitables.
 
 ## Fase 4 — Integración end-to-end
 
@@ -358,10 +366,13 @@ W6 debe validar independientemente:
 - correspondencia determinista JSON -> CSS 1:1;
 - ninguna custom property CSS huérfana;
 - ningún token que deba salir a CSS sin salida;
+- inventario typography exactamente de 15 roles base y ningún rol semántico adicional;
+- inventario shape exactamente de siete roles con valores 0/4/8/12/16/28px y full 50%/equivalente web;
+- logical corners sólo descomponen los siete shapes;
 - ausencia de hex/rgb/hsl repetidos que deban venir de tokens;
 - ausencia de spacing/radius/motion/elevation/tipografía/sizing/borders repetidos que deban venir de tokens;
 - durations restringidas a 50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 700, 800, 900, 1000 ms;
-- curvas canónicas restringidas a standard/accelerate/decelerate/emphasized;
+- curvas canónicas restringidas a standard/accelerate/decelerate/emphasized dentro del mismo esquema;
 - únicamente `semantic.motion.spatial.fast|default|slow` con damping `0.9` y stiffness `1400/700/300`;
 - únicamente `semantic.motion.effects.fast|default|slow` con damping `1.0` y stiffness `3800/1600/800`;
 - spatial aplicado a bounds/posición/shape y effects a color/opacity;

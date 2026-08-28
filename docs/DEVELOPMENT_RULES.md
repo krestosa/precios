@@ -270,13 +270,13 @@ Light/dark son contextos coherentes con el mismo árbol de roles semánticos. Pa
 Foundation:
 
 - family brand/plain;
-- weight regular/medium/bold;
+- weights regular `400`, medium `500`, bold `700`;
 - tracking base;
-- tamaños y line-heights base necesarios.
+- tamaños y line-heights base necesarios para los 15 roles.
 
 `Inter` permanece como familia UI offline-first/fallback salvo decisión posterior explícita.
 
-Semantic contiene 15 composites base:
+Semantic contiene exactamente 15 composites:
 
 - display large/medium/small;
 - headline large/medium/small;
@@ -284,19 +284,21 @@ Semantic contiene 15 composites base:
 - body large/medium/small;
 - label large/medium/small.
 
-Cada composite incluye `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight`. Cada rol puede tener variante `emphasized` 1:1 en métricas y peso tokenizado; `prominent` sólo cuando exista necesidad real. Component CSS no hardcodea tipografía cubierta por roles.
+Cada composite incluye `fontFamily`, `fontSize`, `fontWeight`, `letterSpacing`, `lineHeight` y conserva las métricas/trackings ya definidos. No existen roles tipográficos semánticos adicionales. Component tokens pueden usar weights foundation 400/500/700 sin crear nuevos roles de typescale.
 
 ### Shape
 
-- none;
-- extra-small;
-- small;
-- medium;
-- large;
-- extra-large;
-- full.
+Semantic contiene exactamente siete roles:
 
-Esquinas lógicas derivadas: start-start, start-end, end-start, end-end. Variantes parciales sólo para componentes reales que las necesiten. Geometrías complejas no escalares se mantienen fuera del token JSON o en metadata/extensión válida sólo cuando no exista tipo estándar.
+- none = `0px`;
+- extraSmall = `4px`;
+- small = `8px`;
+- medium = `12px`;
+- large = `16px`;
+- extraLarge = `28px`;
+- full = `50%` o equivalente web de redondeo completo.
+
+Logical corners start-start/start-end/end-start/end-end sólo descomponen esos siete valores; no crean nuevos roles.
 
 ### Elevation
 
@@ -321,7 +323,7 @@ Existe un único esquema normal/utilitario.
 
 Duraciones foundation: 50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 700, 800, 900, 1000 ms.
 
-Curvas foundation: standard, accelerate, decelerate y emphasized cuando corresponda como curvas de timing.
+Curvas foundation: standard, accelerate, decelerate y emphasized cuando corresponda como curvas de timing. `emphasized` no crea una segunda familia de motion.
 
 Las transiciones de componentes son composites `transition` que aliasan esos valores.
 
@@ -408,7 +410,7 @@ Cada primitive, pattern, layout y template productivo tiene `component.<name>` c
 - focus;
 - motion.
 
-Los component tokens aliasan semantic/foundation y no duplican valores gratuitamente.
+Los component tokens aliasan semantic/foundation y no duplican valores gratuitamente. Typography de componente usa los 15 roles semánticos o weights foundation 400/500/700; shape de componente sólo referencia/descompone los siete roles canónicos; motion de componente sólo usa el esquema único y sus seis springs.
 
 Component CSS no debe contener valores repetidos que deberían venir de tokens. En particular, auditar:
 
@@ -491,13 +493,15 @@ W4 debe poder demostrar antes de cerrar:
 - cero ciclos;
 - cobertura foundation -> semantic -> component;
 - catálogo foundation+semantic mínimo completo;
+- exactamente 15 roles typography semánticos: display/headline/title/body/label × large/medium/small;
+- exactamente siete roles shape: none/extraSmall/small/medium/large/extraLarge/full con valores 0/4/8/12/16/28px y full 50%/equivalente web;
+- un único esquema de motion con durations 50..1000 ms, curvas standard/accelerate/decelerate/emphasized y exactamente seis springs canónicos;
 - component tokens exhaustivos para cada componente real;
 - bridge CSS 1:1;
 - cero custom properties huérfanas;
 - cero tokens destinados a CSS sin salida;
 - cero `.styles.ts`/`.template.ts`;
 - archivos reales `.html/.css/.ts` por unidad;
-- motion limitado al esquema único: durations 50..1000 ms, curvas standard/accelerate/decelerate/emphasized y los seis springs canónicos con parámetros exactos;
 - `prefers-reduced-motion` implementable desde tokens/estilos;
 - cero hardcodes visuales evitables en component CSS.
 
@@ -510,6 +514,8 @@ W6 debe validar de forma independiente:
 - ausencia de variables CSS huérfanas;
 - ausencia de tokens CSS-exportables sin salida;
 - cobertura de componentes reales;
+- inventario typography exacto de 15 roles, sin roles semánticos adicionales;
+- inventario shape exacto de siete roles y valores canónicos, sin escalas paralelas;
 - ausencia de hex/rgb/hsl y spacing/radius/motion/elevation repetidos que deban provenir de tokens;
 - que sólo existan `semantic.motion.spatial.fast|default|slow` con damping `0.9` y stiffness `1400/700/300`, y `semantic.motion.effects.fast|default|slow` con damping `1.0` y stiffness `3800/1600/800`;
 - que spatial se use para bounds/posición/shape y effects para color/opacity;

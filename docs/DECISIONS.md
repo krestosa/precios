@@ -143,24 +143,24 @@ Color semantic light/dark con el mismo árbol:
 Typography foundation:
 
 - family brand/plain;
-- weights regular/medium/bold;
+- weights regular `400`, medium `500`, bold `700`;
 - tracking base y escalas necesarias.
 
 `Inter` permanece como familia UI offline-first/fallback salvo decisión posterior explícita.
 
 Typography semantic:
 
-- display/headline/title/body/label × large/medium/small = 15 composites base;
+- existen exactamente 15 composites: display/headline/title/body/label × large/medium/small;
 - cada composite incluye fontFamily/fontSize/fontWeight/letterSpacing/lineHeight;
-- `emphasized` conserva métricas 1:1 y cambia peso mediante token/alias;
-- `prominent` sólo existe donde haya uso real.
+- se conservan las métricas y trackings ya definidos;
+- no existen roles tipográficos semánticos adicionales;
+- componentes pueden usar weights foundation 400/500/700 sin ampliar la typescale.
 
 Shape:
 
-- none, extra-small, small, medium, large, extra-large, full;
-- esquinas lógicas start-start/start-end/end-start/end-end derivadas;
-- variantes parciales sólo para componentes reales;
-- geometrías complejas no escalares no fuerzan tipos inexistentes.
+- existen exactamente siete roles: none `0px`, extraSmall `4px`, small `8px`, medium `12px`, large `16px`, extraLarge `28px`, full `50%`/equivalente web;
+- logical corners start-start/start-end/end-start/end-end sólo descomponen esos siete roles;
+- no existe una segunda escala de shape.
 
 Elevation/state/focus:
 
@@ -173,6 +173,7 @@ Motion:
 - existe un único esquema normal/utilitario;
 - durations: 50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 700, 800, 900, 1000 ms;
 - curvas de timing: standard, accelerate, decelerate y emphasized cuando corresponda;
+- emphasized es sólo una curva de easing del mismo esquema;
 - transitions compuestas mediante esos valores;
 - los únicos spring roles son `semantic.motion.spatial.fast|default|slow` y `semantic.motion.effects.fast|default|slow`;
 - spatial.fast: damping `0.9`, stiffness `1400`;
@@ -201,7 +202,7 @@ Layout/sizing/layering:
 
 Cada primitive/pattern/layout/template productivo tiene `component.<name>` y cubre según aplique container, content, icon, outline, state-layer, selected, disabled, error, typography, shape, elevation, size, spacing, focus y motion.
 
-Component CSS consume custom properties semánticas/de componente y no repite valores que deberían venir del catálogo. Excepciones sólo para valores intrínsecos de assets externos, documentadas.
+Component typography usa los 15 roles semánticos o weights foundation 400/500/700; component shape sólo referencia/descompone los siete roles canónicos; component motion sólo usa el esquema único y seis springs. Component CSS consume custom properties semánticas/de componente y no repite valores que deberían venir del catálogo. Excepciones sólo para valores intrínsecos de assets externos, documentadas.
 
 #### Bridge y validación
 
@@ -210,8 +211,8 @@ Component CSS consume custom properties semánticas/de componente y no repite va
 - No puede haber custom properties sin token fuente.
 - No puede haber token destinado a CSS sin salida.
 - Los nombres CSS deben ser trazables al path del token.
-- W4 no cierra sin catálogo completo y consumo correcto.
-- W6 valida estructura, tipos, aliases, ciclos, bridge, cobertura, motion canónico y ausencia de hardcodes evitables.
+- W4 no cierra sin inventario exacto de 15 typography, siete shapes y un único motion scheme con seis springs, además del catálogo estándar restante y consumo correcto.
+- W6 valida estructura, tipos, aliases, ciclos, bridge, cobertura, inventarios exactos y ausencia de hardcodes evitables.
 
 ### Preflight y batch
 
@@ -337,7 +338,7 @@ Pendiente: ejecutar el mismo handoff/pipeline real en Windows y Linux, y comprob
 
 ### Implementación y QA del sistema de tokens
 
-Pendiente operativo: W4 debe materializar el catálogo completo, el motion canónico y el bridge 1:1; W6 debe validarlos. La arquitectura ya está congelada, pero eso no equivale a implementación ni QA completados.
+Pendiente operativo: W4 debe materializar el catálogo estándar exacto y el bridge 1:1; W6 debe validarlos. La arquitectura ya está congelada, pero eso no equivale a implementación ni QA completados.
 
 ### Librerías concretas
 

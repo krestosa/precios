@@ -264,21 +264,21 @@ Foundation tipográfica incluye como mínimo:
 
 - `foundation.type.family.brand`;
 - `foundation.type.family.plain`;
-- weights `regular`, `medium`, `bold`;
+- weights `regular=400`, `medium=500`, `bold=700`;
 - tracking base reutilizable;
-- escalas de tamaño/line-height necesarias para construir roles semánticos sin repetir valores.
+- escalas de tamaño/line-height necesarias para construir los 15 roles semánticos sin repetir valores.
 
 `Inter` se mantiene como familia UI offline-first/fallback mientras no exista una decisión posterior explícita que la reemplace.
 
 ### 11.7 Typography semantic
 
-Debe existir un catálogo mínimo de 15 roles base:
+La typescale semántica contiene exactamente 15 roles y no admite una segunda escala:
 
-- `display.large|medium|small`;
-- `headline.large|medium|small`;
-- `title.large|medium|small`;
-- `body.large|medium|small`;
-- `label.large|medium|small`.
+- `display.large`, `display.medium`, `display.small`;
+- `headline.large`, `headline.medium`, `headline.small`;
+- `title.large`, `title.medium`, `title.small`;
+- `body.large`, `body.medium`, `body.small`;
+- `label.large`, `label.medium`, `label.small`.
 
 Cada rol es un composite `typography` completo con:
 
@@ -288,30 +288,21 @@ Cada rol es un composite `typography` completo con:
 - `letterSpacing`;
 - `lineHeight`.
 
-Cada rol base debe poder tener variante `emphasized` 1:1 en tamaño, line-height y tracking, variando peso mediante token/alias. `prominent` sólo se incorpora donde exista uso real probado. Los componentes no hardcodean tipografía cuando existe un rol semántico o de componente.
+Las métricas y trackings ya definidos para esos roles se conservan. Los pesos foundation 400/500/700 pueden ser consumidos por component tokens cuando un componente necesite variación de peso, sin crear roles tipográficos semánticos adicionales.
 
 ### 11.8 Shape
 
-Foundation/semantic shape debe cubrir:
+El catálogo de shape contiene exactamente siete roles:
 
-- `none`;
-- `extra-small`;
-- `small`;
-- `medium`;
-- `large`;
-- `extra-large`;
-- `full`.
+- `semantic.shape.none` = `0px`;
+- `semantic.shape.extraSmall` = `4px`;
+- `semantic.shape.small` = `8px`;
+- `semantic.shape.medium` = `12px`;
+- `semantic.shape.large` = `16px`;
+- `semantic.shape.extraLarge` = `28px`;
+- `semantic.shape.full` = `50%` o equivalente web que represente redondeo completo.
 
-Las esquinas lógicas se expresan de forma derivada para:
-
-- `start-start`;
-- `start-end`;
-- `end-start`;
-- `end-end`.
-
-Variantes parciales sólo se crean si un componente real las requiere. Geometrías complejas no escalares no se fuerzan a un tipo inexistente: viven como assets fuera del JSON o como metadata/extensión válida si realmente no existe tipo estándar aplicable.
-
-Cuando una interacción use morphing/shape transition, la forma origen/destino y su motion deben estar tokenizados; `prefers-reduced-motion` debe degradar o eliminar la transformación espacial.
+Las esquinas lógicas `start-start`, `start-end`, `end-start`, `end-end` sólo descomponen/aplican uno de esos siete roles. No generan nuevos roles de shape ni una escala adicional.
 
 ### 11.9 State y focus
 
@@ -353,6 +344,8 @@ Foundation de curvas de timing incluye, cuando corresponda:
 - `accelerate`;
 - `decelerate`;
 - `emphasized`.
+
+`emphasized` es únicamente una curva de easing dentro del mismo esquema; no define una segunda familia de motion.
 
 Las transiciones de componentes se expresan como composites `transition` que aliasan duración y curva del esquema único; no se repiten duraciones/curvas en CSS.
 
@@ -456,7 +449,7 @@ Cada primitive, pattern, layout o template productivo debe tener grupo `componen
 - focus;
 - motion.
 
-Los valores se expresan preferentemente como aliases a semantic/foundation. La cobertura es exhaustiva para cada componente real, pero no se inventan familias de componentes no usados.
+Los valores se expresan preferentemente como aliases a semantic/foundation. La cobertura es exhaustiva para cada componente real, pero no se inventan familias de componentes no usados. Component typography puede seleccionar pesos foundation 400/500/700 sin crear una segunda typescale. Component shape sólo puede referenciar o descomponer los siete roles canónicos.
 
 ## 12. Preflight
 
@@ -492,7 +485,7 @@ Capacidades contractuales:
 - resolución manual de ambigüedades;
 - estado por archivo/batch.
 
-Accesibilidad mínima: teclado, focus visible, semántica correcta, ARIA sólo cuando aporte, reduced-motion y responsive.
+Accesibilidad mínima: teclado, focus visible, semántica correcta, ARIA sólo cuando aporte, `prefers-reduced-motion` y responsive.
 
 ## 14. Export y trazabilidad
 
