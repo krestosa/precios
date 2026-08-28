@@ -1,5 +1,12 @@
 import type { ExportKind, ManifestUiFormat, MatchApplyScope } from '../events';
-import type { PreviewMode, SourceCapabilityView, UiLoadStatus } from '../models';
+import type {
+  PreviewMode,
+  ProcessingState,
+  SourceCapabilityView,
+  UiLoadStatus,
+  WorkbookSheetSummaryView,
+  WorkbookSheetView,
+} from '../models';
 
 export const PRECIOS_APP_CONTROL_VERSION = '1.0' as const;
 
@@ -15,6 +22,7 @@ export type PreciosAppCommandName =
   | 'state.get'
   | 'flow.reset'
   | 'source.load'
+  | 'source.selectSheet'
   | 'svg.load'
   | 'font.load'
   | 'file.select'
@@ -34,6 +42,7 @@ export interface PreciosAppCommandDescriptor {
   readonly payload:
     | 'none'
     | 'files'
+    | 'sheet-select'
     | 'file-id'
     | 'match-choice'
     | 'match-apply'
@@ -45,6 +54,10 @@ export interface PreciosAppCommandDescriptor {
 
 export interface FilesCommandPayload {
   readonly files: File | readonly File[];
+}
+
+export interface SheetSelectCommandPayload {
+  readonly sheetName: string;
 }
 
 export interface FileSelectCommandPayload {
@@ -84,6 +97,7 @@ export interface PreciosAppCommandPayloadMap {
   readonly 'state.get': undefined;
   readonly 'flow.reset': undefined;
   readonly 'source.load': FilesCommandPayload;
+  readonly 'source.selectSheet': SheetSelectCommandPayload;
   readonly 'svg.load': FilesCommandPayload;
   readonly 'font.load': FilesCommandPayload;
   readonly 'file.select': FileSelectCommandPayload;
@@ -125,6 +139,11 @@ export interface PreciosAppStateSnapshot {
     readonly status: UiLoadStatus;
     readonly fileName: string | null;
     readonly capabilities: SourceCapabilityView;
+    readonly sheets: readonly WorkbookSheetView[];
+    readonly selectedSheetName: string | null;
+    readonly sheetSelectionRequired: boolean;
+    readonly sheetProcessingState: ProcessingState | null;
+    readonly selectedSheetSummary: WorkbookSheetSummaryView | null;
   };
   readonly counts: {
     readonly priceSources: number;
