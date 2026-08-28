@@ -2,7 +2,6 @@ import markup from './workbench.html?raw';
 import styles from './workbench.css?raw';
 import '../../../components';
 import '../../../layout';
-import '../../../styles/tokens.css';
 import { mountStaticShadow, requiredElement } from '../../../components/shadow';
 import type { DetailsDrawer } from '../../../components';
 import { dispatchWorkbenchEvent, type PreviewCommand } from '../events';
