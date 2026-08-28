@@ -25,14 +25,14 @@ export interface LightboxTransform {
 export const FIT_LIGHTBOX_TRANSFORM: LightboxTransform = { zoom: 1, panX: 0, panY: 0 };
 
 function targetLabel(file: WorkbenchFileView): string {
+  if (file.rawGroup) return file.rawGroup;
+  if (file.targetScopes?.length) return file.targetScopes.join(' / ');
   const groups = new Set(
     (file.derivedTargets ?? [])
       .map((target) => target.pricingGroup)
       .filter((group): group is string => Boolean(group)),
   );
   if (groups.size > 0) return [...groups].join(' · ');
-  if (file.rawGroup) return file.rawGroup;
-  if (file.targetScopes?.length) return file.targetScopes.join(' / ');
   return 'Sin target';
 }
 
