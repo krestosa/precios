@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - integration/preview-runtime
   workflow_dispatch:
 
 concurrency:
