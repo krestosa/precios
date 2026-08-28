@@ -1,7 +1,7 @@
 import type { PreviewMode } from './models';
 
 export interface WorkbenchUiState {
-  readonly selectedFileId?: string;
+  readonly selectedFileId: string | undefined;
   readonly previewMode: PreviewMode;
   readonly zoom: number;
   readonly detailsOpen: boolean;
@@ -14,6 +14,7 @@ const ZOOM_STEP = 0.25;
 
 export class WorkbenchUiStore {
   private stateValue: WorkbenchUiState = {
+    selectedFileId: undefined,
     previewMode: 'result',
     zoom: 1,
     detailsOpen: false,
