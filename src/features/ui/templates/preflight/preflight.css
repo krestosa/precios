@@ -1,6 +1,6 @@
 :host { display: block; }
 .stack { display: grid; gap: var(--pw-space-md); }
-.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 136px), 1fr)); gap: var(--pw-space-sm); }
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--pw-summary-min)), 1fr)); gap: var(--pw-space-sm); }
 .preflight-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--pw-space-sm); }
 .preflight-item { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--pw-space-md); padding: var(--pw-space-md); border: var(--pw-border-width) solid var(--pw-color-border); border-radius: var(--pw-shape-medium); }
 .meta { color: var(--pw-color-text-muted); font: var(--pw-type-body-small); letter-spacing: var(--pw-type-body-small-tracking); margin-top: var(--pw-space-xs); }

@@ -3,7 +3,7 @@
 .row { display: flex; gap: var(--pw-space-sm); align-items: center; flex-wrap: wrap; }
 .row-between { display: flex; gap: var(--pw-space-md); align-items: flex-start; justify-content: space-between; }
 .filename { min-width: 0; overflow-wrap: anywhere; font-weight: var(--pw-weight-bold); }
-.summary-grid, .price-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 136px), 1fr)); gap: var(--pw-space-sm); }
+.summary-grid, .price-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--pw-summary-min)), 1fr)); gap: var(--pw-space-sm); }
 .metric { min-width: 0; padding: var(--pw-space-md); border: var(--pw-border-width) solid var(--pw-color-border); border-radius: var(--pw-shape-medium); background: var(--pw-color-background); }
 .metric span { display: block; margin-bottom: var(--pw-space-xs); color: var(--pw-color-text-muted); font: var(--pw-type-body-small); letter-spacing: var(--pw-type-body-small-tracking); }
 .metric strong { display: block; overflow-wrap: anywhere; }

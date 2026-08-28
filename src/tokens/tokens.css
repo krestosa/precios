@@ -77,6 +77,7 @@
   --pw-border-width: 1px;
   --pw-border-strong: 2px;
   --pw-control-height: 40px;
+  --pw-summary-min: 136px;
 
   --pw-motion-flash: 50ms;
   --pw-motion-snap: 100ms;
