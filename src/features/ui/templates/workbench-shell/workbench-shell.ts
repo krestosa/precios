@@ -2,7 +2,7 @@ import markup from './workbench-shell.html?raw';
 import styles from './workbench-shell.css?raw';
 import '../../../../components';
 import '../../../../layout';
-import { mountStaticShadow, requiredElement } from '../../../../components/shadow';
+import { mountStaticShadow, requiredElement, upgradeProperty } from '../../../../components/shadow';
 import type { DataListItem, ProgressBar } from '../../../../components';
 import type { WorkbenchFileView, WorkbenchViewModel } from '../../models';
 import type { WorkbenchUiState } from '../../ui-store';
@@ -53,7 +53,7 @@ export class WorkbenchShellTemplate extends HTMLElement {
 
   set view(value: WorkbenchShellView | undefined) { this.viewValue = value; this.sync(); }
   get view(): WorkbenchShellView | undefined { return this.viewValue; }
-  connectedCallback(): void { this.sync(); }
+  connectedCallback(): void { upgradeProperty(this, 'view'); this.sync(); }
 
   private sync(): void {
     const view = this.viewValue; if (!view) return;

@@ -2,7 +2,7 @@ import markup from './workbench.html?raw';
 import styles from './workbench.css?raw';
 import '../../../components';
 import '../../../layout';
-import { mountStaticShadow, requiredElement } from '../../../components/shadow';
+import { mountStaticShadow, requiredElement, upgradeProperty } from '../../../components/shadow';
 import type { DetailsDrawer } from '../../../components';
 import { dispatchWorkbenchEvent, type PreviewCommand } from '../events';
 import { EMPTY_WORKBENCH_MODEL, type PreviewMode, type WorkbenchFileView, type WorkbenchViewModel } from '../models';
@@ -31,7 +31,7 @@ export class PriceWorkbench extends HTMLElement {
   get model(): WorkbenchViewModel { return this.modelValue; }
   set model(value: WorkbenchViewModel) { this.modelValue = value; this.refresh(); }
   get uiState(): WorkbenchUiState { return this.ui.state; }
-  connectedCallback(): void { this.refresh(); }
+  connectedCallback(): void { upgradeProperty(this, 'model'); this.refresh(); }
 
   private get selectedFile(): WorkbenchFileView | undefined {
     const id = this.ui.state.selectedFileId;

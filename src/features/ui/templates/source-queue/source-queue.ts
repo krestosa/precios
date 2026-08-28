@@ -1,7 +1,7 @@
 import markup from './source-queue.html?raw';
 import styles from './source-queue.css?raw';
 import '../../../../components';
-import { mountStaticShadow, requiredElement } from '../../../../components/shadow';
+import { mountStaticShadow, requiredElement, upgradeProperty } from '../../../../components/shadow';
 import type { DataList, DataListItem, FileDropzone, FilesSelectedDetail, StatusChip } from '../../../../components';
 import type { PriceSourceView, UiLoadStatus, WorkbookSheetView } from '../../models';
 import { emitUiTemplateEvent } from '../template-events';
@@ -18,6 +18,10 @@ function sheetOptionLabel(sheet: WorkbookSheetView): string {
   const visibility = sheet.visibility === 'hidden' ? ' · Oculta' : sheet.visibility === 'veryHidden' ? ' · Muy oculta' : '';
   const support = sheet.supportStatus === 'unsupported' ? ' · Estructura no compatible' : '';
   return `${sheet.name}${visibility}${support}`;
+}
+
+function sheetOptionsSignature(sheets: readonly WorkbookSheetView[]): string {
+  return JSON.stringify(sheets.map((sheet) => [sheet.index, sheet.name, sheet.visibility, sheet.supportStatus ?? 'unknown']));
 }
 
 function sourceLoadStatus(source: PriceSourceView): UiLoadStatus {
@@ -59,6 +63,7 @@ export class SourceQueueTemplate extends HTMLElement {
   private readonly queue: DataList;
   private readonly queueEmpty: HTMLElement;
   private viewValue: SourceQueueTemplateView | undefined;
+  private sheetOptionsKey = '';
 
   constructor() {
     super();
@@ -86,7 +91,7 @@ export class SourceQueueTemplate extends HTMLElement {
 
   get view(): SourceQueueTemplateView | undefined { return this.viewValue; }
   set view(value: SourceQueueTemplateView | undefined) { this.viewValue = value; this.sync(); }
-  connectedCallback(): void { this.sync(); }
+  connectedCallback(): void { upgradeProperty(this, 'view'); this.sync(); }
 
   private sync(): void {
     const view = this.viewValue;
@@ -106,11 +111,9 @@ export class SourceQueueTemplate extends HTMLElement {
     this.queueEmpty.hidden = view.items.length > 0;
   }
 
-  private syncSheetSelector(source: PriceSourceView): void {
-    const sheets = source.sheets ?? [];
-    this.sheetSelector.hidden = sheets.length === 0;
-    if (sheets.length === 0) return;
-
+  private syncSheetOptions(sheets: readonly WorkbookSheetView[]): void {
+    const nextKey = sheetOptionsSignature(sheets);
+    if (nextKey === this.sheetOptionsKey) return;
     while (this.sheetSelect.options.length > 1) this.sheetSelect.remove(1);
     sheets.forEach((sheet) => {
       const fragment = this.sheetOptionTemplate.content.cloneNode(true) as DocumentFragment;
@@ -119,6 +122,34 @@ export class SourceQueueTemplate extends HTMLElement {
       option.textContent = sheetOptionLabel(sheet);
       this.sheetSelect.append(fragment);
     });
+    this.sheetOptionsKey = nextKey;
+  }
+
+  private clearSheetSelector(): void {
+    this.sheetOptionsKey = '';
+    while (this.sheetSelect.options.length > 1) this.sheetSelect.remove(1);
+    this.sheetSelect.value = '';
+    this.sheetSuggestion.hidden = true;
+    this.sheetSuggestion.textContent = '';
+    this.sheetStatus.tone = 'neutral';
+    this.sheetStatus.label = '';
+    this.sheetMessage.hidden = true;
+    this.sheetMessage.textContent = '';
+    this.sheetSummary.hidden = true;
+    this.sheetSummary.textContent = '';
+    this.sheetWarnings.hidden = true;
+    this.sheetWarnings.textContent = '';
+  }
+
+  private syncSheetSelector(source: PriceSourceView): void {
+    const sheets = source.sheets ?? [];
+    this.sheetSelector.hidden = sheets.length === 0;
+    if (sheets.length === 0) {
+      this.clearSheetSelector();
+      return;
+    }
+
+    this.syncSheetOptions(sheets);
     this.sheetSelect.value = source.selectedSheetName ?? '';
 
     this.sheetSuggestion.hidden = !source.suggestedSheetName;

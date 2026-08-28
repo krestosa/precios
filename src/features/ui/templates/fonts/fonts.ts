@@ -1,7 +1,7 @@
 import markup from './fonts.html?raw';
 import styles from './fonts.css?raw';
 import '../../../../components';
-import { mountStaticShadow, requiredElement } from '../../../../components/shadow';
+import { mountStaticShadow, requiredElement, upgradeProperty } from '../../../../components/shadow';
 import type { FileDropzone, FilesSelectedDetail, StatusChip } from '../../../../components';
 import type { FontView, UiLoadStatus } from '../../models';
 import { fontLabel, fontTone, processingLabel, processingTone } from '../../presentation';
@@ -29,7 +29,7 @@ export class FontsTemplate extends HTMLElement {
   get fonts(): readonly FontView[] { return this.fontsValue; }
   set loadStatus(value: UiLoadStatus) { this.loadStatusValue = value; this.sync(); }
   get loadStatus(): UiLoadStatus { return this.loadStatusValue; }
-  connectedCallback(): void { this.sync(); }
+  connectedCallback(): void { upgradeProperty(this, 'fonts'); upgradeProperty(this, 'loadStatus'); this.sync(); }
 
   private sync(): void {
     this.dropzone.status = this.loadStatusValue;
