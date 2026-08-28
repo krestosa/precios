@@ -1,7 +1,7 @@
 import type { FileTrace, FontRecord, PriceField, PriceSourceKind, SourceLoc } from '../domain/contracts';
 import type { FontRegistrationResult, FontResolution } from '../features/font-resolver';
 import { buildSvgPreviewModel } from '../features/svg-engine';
-import type { FontView, PreviewView, WorkbenchFileView } from '../features/ui/models';
+import type { FontView, PreviewView, ProcessingState, WorkbenchFileView } from '../features/ui/models';
 import type {
   AppRuntimeSnapshot,
   RuntimeFile,
@@ -84,22 +84,34 @@ export function fileTrace(file: RuntimeFile): FileTrace {
   };
 }
 
+function completedProcessingState(file: RuntimeFile, warnings: readonly string[], errors: readonly string[]): ProcessingState {
+  if (errors.length > 0 || file.preflight?.blocking) return 'error';
+  if (warnings.length > 0 || file.preflight?.issues.some((issue) => issue.severity === 'WARNING')) return 'warning';
+  return 'ready';
+}
+
 export function fileView(file: RuntimeFile, source: RuntimeSource | null): WorkbenchFileView {
-  const resolved = file.priceAlternatives.length === 1 ? file.priceAlternatives[0] : undefined;
+  const resolved = source !== null && file.priceAlternatives.length === 1 ? file.priceAlternatives[0] : undefined;
   const warnings = [
     ...file.analysis.diagnostics
       .filter((item) => !item.code.includes('ambiguous'))
       .map((item) => diagnosticMessage(item.code, item.message)),
-    ...(file.priceIssue?.severity === 'WARNING' ? [file.priceIssue.message] : []),
+    ...(source !== null && file.priceIssue?.severity === 'WARNING' ? [file.priceIssue.message] : []),
   ];
-  const errors = file.priceIssue?.severity === 'ERROR' ? [file.priceIssue.message] : [];
+  const errors = source !== null && file.priceIssue?.severity === 'ERROR' ? [file.priceIssue.message] : [];
   return {
     id: file.id,
     fileName: file.fileName,
+    processingState: completedProcessingState(file, warnings, errors),
     detectedLocal: fileStem(file.fileName),
-    match: file.match,
     classification: file.analysis.classification,
-    ...(source === null ? {} : { sourceFileName: source.fileName }),
+    ...(source === null
+      ? {}
+      : {
+          match: file.match,
+          sourceFileName: source.fileName,
+          trace: fileTrace(file),
+        }),
     ...(resolved === undefined ? {} : { rawGroup: resolved.record.scope.groupRaw ?? null, channel: resolved.record.channel }),
     ...(resolved === undefined
       ? {}
@@ -113,7 +125,6 @@ export function fileView(file: RuntimeFile, source: RuntimeSource | null): Workb
     ...(file.preflight === undefined ? {} : { preflight: file.preflight }),
     ...(file.generation === undefined ? {} : { generation: file.generation }),
     preview: previewView(file),
-    trace: fileTrace(file),
     ...(warnings.length === 0 ? {} : { warnings }),
     ...(errors.length === 0 ? {} : { errors }),
     exportable: file.preflight !== undefined && !file.preflight.blocking,
@@ -156,6 +167,8 @@ export function pendingSvgView(id: string, file: File, source: RuntimeSource | n
   return {
     id,
     fileName: file.name,
+    processingState: 'processing',
+    processingMessage: 'Analizando archivo SVG.',
     detectedLocal: fileStem(file.name),
     ...(source === null ? {} : { sourceFileName: source.fileName }),
     exportable: false,
@@ -165,6 +178,8 @@ export function pendingSvgView(id: string, file: File, source: RuntimeSource | n
 export function failedSvgView(id: string, file: File, source: RuntimeSource | null, message: string): WorkbenchFileView {
   return {
     ...pendingSvgView(id, file, source),
+    processingState: 'error',
+    processingMessage: message,
     errors: [message],
   };
 }
@@ -202,43 +217,78 @@ export function runtimePriceAlternatives(file: RuntimeFile): readonly RuntimePri
   }));
 }
 
-function fontView(id: string, record: FontRecord, uiStatus: FontView['uiStatus']): FontView {
-  return { id, record, uiStatus };
+function fontView(
+  id: string,
+  displayName: string,
+  processingState: ProcessingState,
+  record?: FontRecord,
+  uiStatus?: FontView['uiStatus'],
+  message?: string,
+): FontView {
+  return {
+    id,
+    displayName,
+    processingState,
+    ...(record === undefined ? {} : { record }),
+    ...(uiStatus === undefined ? {} : { uiStatus }),
+    ...(message === undefined ? {} : { message }),
+  };
+}
+
+export function pendingFontView(id: string, file: File): FontView {
+  return fontView(id, file.name, 'processing', undefined, undefined, `Procesando… · ${formatUploadMetadata(file)}`);
+}
+
+export function failedFontView(id: string, file: File, message: string): FontView {
+  return fontView(id, file.name, 'error', undefined, undefined, message);
 }
 
 export function resolutionFontView(resolution: FontResolution, index: number): FontView {
+  const displayName = resolution.record?.file?.originalName ?? resolution.requested.family;
   if (resolution.record !== undefined) {
+    const uiStatus = resolution.status === 'resolved'
+      ? resolution.record.source === 'uploaded' ? 'uploaded' : 'installed'
+      : 'mismatch';
     return fontView(
       resolution.record.file?.id ?? `font:${index}:${resolution.requested.family}`,
+      displayName,
+      resolution.status === 'resolved' ? 'ready' : 'warning',
       resolution.record,
-      resolution.status === 'resolved'
-        ? resolution.record.source === 'uploaded' ? 'uploaded' : 'installed'
-        : 'mismatch',
+      uiStatus,
+      resolution.diagnostics[0]?.message,
     );
   }
+  const record: FontRecord = {
+    spec: resolution.requested,
+    source: 'unavailable',
+    status: 'unavailable',
+    diagnostics: resolution.diagnostics,
+  };
   return fontView(
     `font:${index}:${resolution.requested.family}`,
-    {
-      spec: resolution.requested,
-      source: 'unavailable',
-      status: 'unavailable',
-      diagnostics: resolution.diagnostics,
-    },
+    displayName,
+    resolution.status === 'mismatch' ? 'warning' : 'error',
+    record,
     resolution.status === 'mismatch' ? 'mismatch' : 'missing',
+    resolution.diagnostics[0]?.message,
   );
 }
 
 export function registeredFontView(result: FontRegistrationResult): FontView | undefined {
   if (result.status !== 'registered' || result.registered === undefined) return undefined;
+  const record: FontRecord = {
+    spec: result.registered.spec,
+    source: 'uploaded',
+    status: 'available',
+    file: result.registered.meta,
+    diagnostics: result.diagnostics,
+  };
   return fontView(
     result.registered.id,
-    {
-      spec: result.registered.spec,
-      source: 'uploaded',
-      status: 'available',
-      file: result.registered.meta,
-      diagnostics: result.diagnostics,
-    },
+    result.registered.meta.originalName ?? result.registered.spec.family,
+    result.diagnostics.length > 0 ? 'warning' : 'ready',
+    record,
     'uploaded',
+    result.diagnostics[0]?.message,
   );
 }
