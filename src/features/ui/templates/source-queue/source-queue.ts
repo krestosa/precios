@@ -23,7 +23,8 @@ function sheetOptionLabel(sheet: WorkbookSheetView): string {
 function sourceLoadStatus(source: PriceSourceView): UiLoadStatus {
   if (source.sheetSelectionRequired && !source.selectedSheetName) return 'loading';
   if (source.sheetProcessingState === 'queued' || source.sheetProcessingState === 'processing') return 'loading';
-  if (source.sheetProcessingState === 'error') return 'error';
+  const selected = source.sheets?.find((sheet) => sheet.name === source.selectedSheetName);
+  if (selected?.supportStatus === 'unsupported' || source.sheetProcessingState === 'error') return 'error';
   return source.status;
 }
 
