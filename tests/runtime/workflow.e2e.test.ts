@@ -189,8 +189,27 @@ describe('workflow productivo por Control API', () => {
       (state) => typeof getPath(state, 'view', 'zoom') === 'number'
         && Number(getPath(state, 'view', 'zoom')) > Number(beforeZoom),
     );
-    expect(Number(getPath(zoomed, 'view', 'zoom'))).toBeGreaterThan(Number(beforeZoom));
+    const zoomedValue = Number(getPath(zoomed, 'view', 'zoom'));
+    expect(zoomedValue).toBeGreaterThan(Number(beforeZoom));
 
+    const zoomedOut = await executeAndWaitForState(
+      api,
+      'preview.zoomOut',
+      undefined,
+      (state) => Number(getPath(state, 'view', 'zoom')) < zoomedValue,
+    );
+    expect(Number(getPath(zoomedOut, 'view', 'zoom'))).toBeLessThan(zoomedValue);
+
+    await executeAndWaitForState(api, 'preview.zoomIn', undefined, (state) => Number(getPath(state, 'view', 'zoom')) > 1);
+    const resetZoom = await executeAndWaitForState(
+      api,
+      'preview.reset',
+      undefined,
+      (state) => getPath(state, 'view', 'zoom') === 1,
+    );
+    expect(getPath(resetZoom, 'view', 'zoom')).toBe(1);
+
+    await executeAndWaitForState(api, 'preview.zoomIn', undefined, (state) => Number(getPath(state, 'view', 'zoom')) > 1);
     const fit = await executeAndWaitForState(
       api,
       'preview.fit',
@@ -211,9 +230,13 @@ describe('workflow productivo por Control API', () => {
 
     const after = api.getState();
     expect(JSON.stringify(after), 'export.request debe dejar un resultado observable en el estado de runtime').not.toBe(before);
-    expect(containsScalar(after, 'generated')).toBe(true);
-    expect(containsScalar(after, 'zip') || containsScalar(after, 'manifest')).toBe(true);
-    expect(containsScalar(after, 'sha256') || containsScalar(after, 'SHA-256')).toBe(true);
+
+    const observable = { state: after, model: workbenchModel() };
+    const serialized = JSON.stringify(observable).toLowerCase();
+    expect(serialized).toContain('generated');
+    expect(serialized.includes('<svg') || serialized.includes('.svg')).toBe(true);
+    expect(serialized.includes('zip') || serialized.includes('manifest')).toBe(true);
+    expect(serialized.includes('sha256') || serialized.includes('sha-256')).toBe(true);
   });
 
   it('reset posterior al flujo devuelve el snapshot inicial consistente', async () => {
