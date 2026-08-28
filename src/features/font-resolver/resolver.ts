@@ -28,14 +28,14 @@ function sameFamily(left: FontSpec, right: FontSpec): boolean {
   return normalize(left.family) === normalize(right.family);
 }
 
-function matchesSpec(left: FontSpec, right: FontSpec): boolean {
-  const subfamilyMatches = left.subfamily === undefined || right.subfamily === undefined
-    ? left.subfamily === right.subfamily || left.subfamily === undefined || right.subfamily === undefined
-    : normalize(left.subfamily) === normalize(right.subfamily);
-  return sameFamily(left, right)
+function matchesSpec(candidate: FontSpec, required: FontSpec): boolean {
+  const subfamilyMatches = required.subfamily === undefined
+    ? true
+    : candidate.subfamily !== undefined && normalize(candidate.subfamily) === normalize(required.subfamily);
+  return sameFamily(candidate, required)
     && subfamilyMatches
-    && left.weight === right.weight
-    && normalize(left.style) === normalize(right.style);
+    && candidate.weight === required.weight
+    && normalize(candidate.style) === normalize(required.style);
 }
 
 function cssFamily(family: string): string {

@@ -3,6 +3,10 @@ import type { FileTrace } from '../../domain/contracts/manifest';
 import type { ExportManifestDocument, ExportManifestFile, ExportJobMetadata } from './model';
 import { csvCell, stableJson } from './stable';
 
+function compareText(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
 function priceState(value: FileTrace['pricing']['normal']): string {
   return value?.state ?? 'missing';
 }
@@ -19,7 +23,7 @@ export function buildManifestDocument(
     version: 1,
     job,
     files: [...files].sort((left, right) =>
-      left.sourceFileName.localeCompare(right.sourceFileName, 'en') || left.fileId.localeCompare(right.fileId, 'en')),
+      compareText(left.sourceFileName, right.sourceFileName) || compareText(left.fileId, right.fileId)),
   };
 }
 

@@ -10,6 +10,10 @@ export interface ZipTaskInput {
   readonly entries: readonly ZipTaskEntry[];
 }
 
+function compareText(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
 function assertSafeZipName(name: string): void {
   if (name === '' || name.startsWith('/') || name.includes('\\')) {
     throw new Error(`Nombre de archivo ZIP inseguro: ${name}`);
@@ -21,7 +25,7 @@ function assertSafeZipName(name: string): void {
 }
 
 export function runZipTask(input: ZipTaskInput): Uint8Array {
-  const ordered = [...input.entries].sort((left, right) => left.name.localeCompare(right.name, 'en'));
+  const ordered = [...input.entries].sort((left, right) => compareText(left.name, right.name));
   const seen = new Set<string>();
   const payload: Zippable = {};
 

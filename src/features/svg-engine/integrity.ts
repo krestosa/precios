@@ -3,12 +3,18 @@ import { scanSvgXml } from './xml-scan';
 
 const encoder = new TextEncoder();
 
+function hashBuffer(value: string | Uint8Array): ArrayBuffer {
+  if (typeof value === 'string') return encoder.encode(value).buffer;
+  const copy = new Uint8Array(value.byteLength);
+  copy.set(value);
+  return copy.buffer;
+}
+
 export async function sha256Hex(value: string | Uint8Array): Promise<string> {
   if (globalThis.crypto?.subtle === undefined) {
     throw new Error('Web Crypto no está disponible para calcular SHA-256.');
   }
-  const bytes = typeof value === 'string' ? encoder.encode(value) : value;
-  const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes);
+  const digest = await globalThis.crypto.subtle.digest('SHA-256', hashBuffer(value));
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
