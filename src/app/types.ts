@@ -1,5 +1,4 @@
 import type {
-  BatchPreflight,
   Diagnostic,
   FilePreflight,
   MatchResult,
