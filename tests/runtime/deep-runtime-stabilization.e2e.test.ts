@@ -200,14 +200,20 @@ describe('W27 deep runtime stabilization', () => {
     await controller.waitFor('preflight.run');
     const exportable = workbench.model.files.filter((file) => file.exportable);
     expect(exportable).toHaveLength(2);
+    const exportIds = exportable.map((file) => file.id);
 
-    dispatchWorkbenchEvent(workbench, 'pw:export-request', { kind: 'zip', fileIds: exportable.map((file) => file.id) });
+    dispatchWorkbenchEvent(workbench, 'pw:export-request', { kind: 'zip', fileIds: exportIds });
     await controller.waitFor('export.request');
 
     const result = controller.snapshot().exportResult;
     expect(result?.status).toBe('generated');
     const pngNames = result?.artifactNames.filter((name) => name.endsWith('.png')) ?? [];
-    expect(pngNames).toHaveLength(2);
-    expect(new Set(pngNames).size).toBe(2);
+    expect(pngNames).toEqual(['duplicado.png', 'duplicado (2).png']);
+
+    dispatchWorkbenchEvent(workbench, 'pw:export-request', { kind: 'zip', fileIds: exportIds });
+    await controller.waitFor('export.request');
+    const repeated = controller.snapshot().exportResult;
+    expect(repeated?.status).toBe('generated');
+    expect(repeated?.artifactNames.filter((name) => name.endsWith('.png'))).toEqual(pngNames);
   });
 });
