@@ -12,17 +12,25 @@ const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 3;
 const ZOOM_STEP = 0.25;
 
-export class WorkbenchUiStore {
-  private stateValue: WorkbenchUiState = {
+function initialState(): WorkbenchUiState {
+  return {
     selectedFileId: undefined,
     previewMode: 'result',
     zoom: 1,
     detailsOpen: false,
     matchChoiceByFile: {},
   };
+}
+
+export class WorkbenchUiStore {
+  private stateValue: WorkbenchUiState = initialState();
 
   get state(): WorkbenchUiState {
     return this.stateValue;
+  }
+
+  reset(): void {
+    this.stateValue = initialState();
   }
 
   selectFile(fileId: string | undefined): void {
