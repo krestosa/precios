@@ -1,5 +1,6 @@
 import type { MatchResult, PreflightIssue } from '../../../domain/contracts';
 import type { WorkbenchViewModel, WorkbenchFileView } from '../models';
+import { derivedLayoutIssues } from '../presentation';
 import type { WorkbenchUiState } from '../ui-store';
 import {
   PRECIOS_APP_CONTROL_VERSION,
@@ -29,7 +30,7 @@ function currentWarnings(model: WorkbenchViewModel, selected: WorkbenchFileView 
 
   if (model.source.message && model.source.status !== 'error') warnings.add(model.source.message);
   model.files.forEach((file) => file.warnings?.forEach((message) => warnings.add(message)));
-  selected?.layoutIssues?.filter((issue) => issue.severity === 'WARNING').forEach((issue) => warnings.add(issue.message));
+  if (selected) derivedLayoutIssues(selected).filter((issue) => issue.severity === 'WARNING').forEach((issue) => warnings.add(issue.message));
   if (selected?.preview?.message && selected.preview.status !== 'error') warnings.add(selected.preview.message);
 
   const preflightIssues: readonly PreflightIssue[] = model.preflight
@@ -45,7 +46,7 @@ function currentErrors(model: WorkbenchViewModel, selected: WorkbenchFileView | 
 
   if (model.source.message && model.source.status === 'error') errors.add(model.source.message);
   model.files.forEach((file) => file.errors?.forEach((message) => errors.add(message)));
-  selected?.layoutIssues?.filter((issue) => issue.severity === 'ERROR').forEach((issue) => errors.add(issue.message));
+  if (selected) derivedLayoutIssues(selected).filter((issue) => issue.severity === 'ERROR').forEach((issue) => errors.add(issue.message));
   if (selected?.preview?.message && selected.preview.status === 'error') errors.add(selected.preview.message);
 
   const preflightIssues: readonly PreflightIssue[] = model.preflight
