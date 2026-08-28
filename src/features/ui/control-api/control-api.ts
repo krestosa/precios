@@ -21,12 +21,14 @@ import {
   type PreciosAppStateListener,
   type PreviewModeCommandPayload,
   type PreviewTargetCommandPayload,
+  type SheetSelectCommandPayload,
 } from './types';
 
 const COMMANDS: readonly PreciosAppCommandDescriptor[] = [
   { name: 'state.get', payload: 'none' },
   { name: 'flow.reset', payload: 'none' },
   { name: 'source.load', payload: 'files' },
+  { name: 'source.selectSheet', payload: 'sheet-select' },
   { name: 'svg.load', payload: 'files' },
   { name: 'font.load', payload: 'files' },
   { name: 'file.select', payload: 'file-id' },
@@ -79,6 +81,10 @@ function accepted(): PreciosAppControlResult<{ readonly accepted: true }> {
   return { ok: true, value: { accepted: true } };
 }
 
+function acceptedSheet(sheetName: string): PreciosAppControlResult<{ readonly accepted: true; readonly sheetName: string }> {
+  return { ok: true, value: { accepted: true, sheetName } };
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -105,6 +111,11 @@ function readRequiredString(payload: unknown, key: string): Validation<string> {
   const value = payload[key];
   if (typeof value !== 'string' || value.trim().length === 0) return invalid(`${key} debe ser un string no vacío.`);
   return { ok: true, value };
+}
+
+function readSheetSelect(payload: unknown): Validation<SheetSelectCommandPayload> {
+  const sheetName = readRequiredString(payload, 'sheetName');
+  return sheetName.ok ? { ok: true, value: { sheetName: sheetName.value } } : sheetName;
 }
 
 function readMatchChoice(payload: unknown): Validation<MatchChoiceCommandPayload> {
@@ -291,6 +302,22 @@ export function installPreciosAppControl(workbench: PriceWorkbench): () => void 
           else {
             emitUiTemplateEvent(workbench, 'ui:source-files', { files: files.value });
             result = accepted();
+          }
+          break;
+        }
+        case 'source.selectSheet': {
+          const selection = readSheetSelect(payload);
+          if (!selection.ok) result = { ok: false, error: selection.error };
+          else {
+            const sheets = workbench.model.source.sheets ?? [];
+            if (sheets.length === 0) {
+              result = fail('not-available', 'No hay un workbook abierto con hojas seleccionables.');
+            } else if (!sheets.some((sheet) => sheet.name === selection.value.sheetName)) {
+              result = fail('not-found', 'La hoja solicitada no existe en el workbook abierto.', { sheetName: selection.value.sheetName });
+            } else {
+              emitUiTemplateEvent(workbench, 'ui:sheet-select', selection.value);
+              result = acceptedSheet(selection.value.sheetName);
+            }
           }
           break;
         }
