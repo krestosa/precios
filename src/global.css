@@ -1,0 +1,22 @@
+html, body {
+  min-width: 0;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  min-height: 100dvh;
+  overflow-x: hidden;
+  background: var(--pw-color-background);
+}
+
+#app {
+  min-width: 0;
+  min-height: 100dvh;
+}
+
+:root {
+  --pw-color-secondary: var(--pw-color-primary);
+  --pw-color-secondary-container: var(--pw-color-primary-container);
+  --pw-color-on-secondary-container: var(--pw-color-on-primary-container);
+}
