@@ -1,27 +1,27 @@
 :host { display: inline-flex; }
 button {
-  min-height: var(--pw-component-ui-button-height);
+  min-height: var(--pw-control-height);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--pw-component-ui-button-gap);
-  border: var(--pw-semantic-size-border) solid var(--pw-semantic-color-scheme-outline);
-  border-radius: var(--pw-component-ui-button-shape);
-  padding: var(--pw-component-ui-button-pad-block) var(--pw-component-ui-button-pad-inline);
-  font: var(--pw-component-ui-button-type);
-  letter-spacing: var(--pw-component-ui-button-type-letter-spacing);
-  color: var(--pw-semantic-color-scheme-on-surface);
-  background: var(--pw-semantic-color-scheme-surface);
+  gap: var(--pw-space-sm);
+  border: var(--pw-border-width) solid var(--pw-color-outline);
+  border-radius: var(--pw-shape-medium);
+  padding: var(--pw-space-sm) var(--pw-space-md);
+  font: var(--pw-type-label-large);
+  letter-spacing: var(--pw-type-label-large-tracking);
+  color: var(--pw-color-text);
+  background: var(--pw-color-surface);
   cursor: pointer;
-  transition: background-color var(--pw-component-ui-button-motion) var(--pw-semantic-motion-easing-standard), color var(--pw-component-ui-button-motion) var(--pw-semantic-motion-easing-standard), border-color var(--pw-component-ui-button-motion) var(--pw-semantic-motion-easing-standard);
+  transition: background-color var(--pw-motion-quick) var(--pw-easing-standard), color var(--pw-motion-quick) var(--pw-easing-standard), border-color var(--pw-motion-quick) var(--pw-easing-standard);
 }
-button:hover:not(:disabled) { background: var(--pw-semantic-color-scheme-surface-variant); }
-button:focus-visible { outline: var(--pw-semantic-focus-width) solid var(--pw-semantic-focus-color); outline-offset: var(--pw-semantic-focus-outward-offset); }
-:host([variant='primary']) button { color: var(--pw-semantic-color-scheme-on-primary); border-color: var(--pw-semantic-color-scheme-primary); background: var(--pw-semantic-color-scheme-primary); }
-:host([variant='primary']) button:hover:not(:disabled) { background: var(--pw-semantic-color-scheme-primary-container); color: var(--pw-semantic-color-scheme-on-surface); }
+button:hover:not(:disabled) { background: var(--pw-color-surface-alt); }
+button:focus-visible { outline: var(--pw-focus-width) solid var(--pw-color-accent); outline-offset: var(--pw-focus-outward-offset); }
+:host([variant='primary']) button { color: var(--pw-color-on-accent); border-color: var(--pw-color-accent); background: var(--pw-color-accent); }
+:host([variant='primary']) button:hover:not(:disabled) { background: var(--pw-color-accent-soft); color: var(--pw-color-text); }
 :host([variant='ghost']) button { border-color: transparent; background: transparent; }
-:host([variant='danger']) button { color: var(--pw-semantic-color-scheme-on-error); border-color: var(--pw-semantic-color-scheme-error); background: var(--pw-semantic-color-scheme-error); }
-button:disabled { cursor: not-allowed; opacity: var(--pw-semantic-state-disabled-content); }
+:host([variant='danger']) button { color: var(--pw-color-on-error); border-color: var(--pw-color-error); background: var(--pw-color-error); }
+button:disabled { cursor: not-allowed; opacity: var(--pw-disabled-opacity); }
 .busy { display: none; }
 :host([busy]) .busy { display: inline; }
 @media (prefers-reduced-motion: reduce) { button { transition: none; } }

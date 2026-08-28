@@ -1,3 +1,3 @@
 :host { display: block; }
-.row { display: flex; justify-content: space-between; gap: var(--pw-component-progress-bar-gap); margin-bottom: var(--pw-semantic-space-xs); color: var(--pw-semantic-color-scheme-on-surface-variant); font: var(--pw-component-progress-bar-type); letter-spacing: var(--pw-component-progress-bar-type-letter-spacing); }
-progress { display: block; width: 100%; height: var(--pw-component-progress-bar-height); accent-color: var(--pw-semantic-color-scheme-primary); }
+.row { display: flex; justify-content: space-between; gap: var(--pw-space-md); margin-bottom: var(--pw-space-xs); color: var(--pw-color-text-muted); font: var(--pw-type-label-medium); letter-spacing: var(--pw-type-label-medium-tracking); }
+progress { display: block; width: 100%; height: 4px; accent-color: var(--pw-color-accent); }

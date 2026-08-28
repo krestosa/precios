@@ -1,14 +1,14 @@
-:host { display: block; }
-.zone { display: grid; place-items: center; gap: var(--pw-component-file-dropzone-gap); min-height: var(--pw-component-file-dropzone-min-height); border: var(--pw-semantic-size-border-strong) dashed var(--pw-semantic-color-scheme-outline); border-radius: var(--pw-component-file-dropzone-shape); padding: var(--pw-component-file-dropzone-padding); text-align: center; background: var(--pw-semantic-color-scheme-background); color: var(--pw-semantic-color-scheme-on-surface); transition: border-color var(--pw-component-file-dropzone-motion) var(--pw-semantic-motion-easing-standard), background-color var(--pw-component-file-dropzone-motion) var(--pw-semantic-motion-easing-standard); }
-.zone[data-drag='true'] { border-color: var(--pw-semantic-color-scheme-primary); background: var(--pw-semantic-color-scheme-primary-container); }
-.zone:focus-within { outline: var(--pw-semantic-focus-width) solid var(--pw-semantic-focus-color); outline-offset: var(--pw-semantic-focus-outward-offset); }
-strong { font: var(--pw-semantic-type-body-medium); letter-spacing: var(--pw-semantic-type-body-medium-letter-spacing); }
-small { color: var(--pw-semantic-color-scheme-on-surface-variant); }
+:host { display: block; --dropzone-hidden-size: 1px; }
+.zone { display: grid; place-items: center; gap: var(--pw-space-xs); min-height: 48px; border: var(--pw-border-strong) dashed var(--pw-color-outline); border-radius: var(--pw-shape-medium); padding: var(--pw-space-lg); text-align: center; background: var(--pw-color-background); color: var(--pw-color-text); transition: border-color var(--pw-motion-quick) var(--pw-easing-standard), background-color var(--pw-motion-quick) var(--pw-easing-standard); }
+.zone[data-drag='true'] { border-color: var(--pw-color-accent); background: var(--pw-color-accent-soft); }
+.zone:focus-within { outline: var(--pw-focus-width) solid var(--pw-color-accent); outline-offset: var(--pw-focus-outward-offset); }
+strong { font: var(--pw-type-body-medium); letter-spacing: var(--pw-type-body-medium-tracking); }
+small { color: var(--pw-color-text-muted); }
 small:empty, .extra:empty { display: none; }
-input { position: absolute; inline-size: var(--pw-semantic-size-visually-hidden); block-size: var(--pw-semantic-size-visually-hidden); opacity: 0; pointer-events: none; }
-label { display: inline-flex; margin-top: var(--pw-semantic-space-xs); border-radius: var(--pw-semantic-shape-small); padding: var(--pw-semantic-space-sm) var(--pw-semantic-space-md); color: var(--pw-semantic-color-scheme-primary); background: var(--pw-semantic-color-scheme-surface); border: var(--pw-semantic-size-border) solid var(--pw-semantic-color-scheme-outline-variant); font: var(--pw-component-file-dropzone-type); letter-spacing: var(--pw-component-file-dropzone-type-letter-spacing); cursor: pointer; }
-:host([disabled]) label { cursor: not-allowed; opacity: var(--pw-semantic-state-disabled-content); }
-.state { font: var(--pw-component-file-dropzone-type); letter-spacing: var(--pw-component-file-dropzone-type-letter-spacing); }
-:host([status='error']) .state { color: var(--pw-semantic-color-scheme-error); }
-:host([status='ready']) .state { color: var(--pw-semantic-color-scheme-success); }
+input { position: absolute; inline-size: var(--dropzone-hidden-size); block-size: var(--dropzone-hidden-size); opacity: 0; pointer-events: none; }
+label { display: inline-flex; margin-top: var(--pw-space-xs); border-radius: var(--pw-shape-small); padding: var(--pw-space-sm) var(--pw-space-md); color: var(--pw-color-accent); background: var(--pw-color-surface); border: var(--pw-border-width) solid var(--pw-color-border); font: var(--pw-type-label-medium); letter-spacing: var(--pw-type-label-medium-tracking); cursor: pointer; }
+:host([disabled]) label { cursor: not-allowed; opacity: var(--pw-disabled-opacity); }
+.state { font: var(--pw-type-label-medium); letter-spacing: var(--pw-type-label-medium-tracking); }
+:host([status='error']) .state { color: var(--pw-color-error); }
+:host([status='ready']) .state { color: var(--pw-color-success); }
 @media (prefers-reduced-motion: reduce) { .zone { transition: none; } }

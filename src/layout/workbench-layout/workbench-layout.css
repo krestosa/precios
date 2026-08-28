@@ -1,5 +1,5 @@
 :host { display: block; min-width: 0; }
-.shell { display: grid; gap: var(--pw-component-workbench-layout-gap); grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--pw-component-workbench-layout-left-min)), 1fr)); align-items: start; }
-.column { min-width: 0; display: grid; gap: var(--pw-component-workbench-layout-gap); }
-.center { min-inline-size: min(100%, var(--pw-component-workbench-layout-center-min)); }
-.right { min-inline-size: min(100%, var(--pw-component-workbench-layout-right-min)); }
+.shell { display: grid; gap: var(--pw-space-lg); grid-template-columns: repeat(auto-fit, minmax(min(100%, 272px), 1fr)); align-items: start; }
+.column { min-width: 0; display: grid; gap: var(--pw-space-lg); }
+.center { min-inline-size: min(100%, 400px); }
+.right { min-inline-size: min(100%, 288px); }
