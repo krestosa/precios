@@ -1,8 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { adaptCsvPricingCompatibility } from '../../src/app/csv-pricing-compat';
 import { reconcilePriceSlots } from '../../src/domain/pricing/reconcile';
 import { loadLocalWorkbook } from '../../src/features/data-source/local-workbook-source';
-import { adaptObservedPricingMatrix } from '../../src/features/data-source/pricing-matrix-adapter';
 import { matchName } from '../../src/features/matching/name-matcher';
 import { analyzeSvg } from '../../src/features/svg-engine/analyze';
 
@@ -22,7 +22,8 @@ describe('fixtures productivos mínimos', () => {
     const loaded = loadLocalWorkbook({ sourceId: 'qa-local', fileName: 'workflow-prices.csv', data: bytes });
     expect(loaded.snapshots).toHaveLength(1);
 
-    const adapted = adaptObservedPricingMatrix(loaded.snapshots[0]!);
+    const adapted = adaptCsvPricingCompatibility(loaded.snapshots[0]!);
+    expect(adapted.supported).toBe(true);
     const productRows = adapted.rows.filter((row) => row.kind === 'product');
     expect(productRows).toHaveLength(4);
 
