@@ -1,4 +1,5 @@
 import './tokens/tokens.css';
+import './global.css';
 import './features/ui/workbench';
 import { installAppControlAdapter, installAppRuntimeController } from './app';
 import { installPreciosAppControl } from './features/ui/control-api';
