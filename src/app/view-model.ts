@@ -1,16 +1,11 @@
 import type { FileTrace, FontRecord, PriceField, PriceSourceKind, SourceLoc } from '../domain/contracts';
 import type { FontRegistrationResult, FontResolution } from '../features/font-resolver';
-import {
-  actionNameWithoutLocal,
-  findSvgLocalCandidates,
-  normalizeActionName,
-  parseSvgIdentity,
-} from '../features/matching';
 import { buildSvgPreviewModel } from '../features/svg-engine';
 import type { FontView, PreviewView, ProcessingState, WorkbenchFileView } from '../features/ui/models';
 import type {
   AppRuntimeSnapshot,
   RuntimeFile,
+  RuntimeOutput,
   RuntimePriceAlternative,
   RuntimeSource,
 } from './types';
@@ -30,76 +25,55 @@ function traceSources(fields: readonly (PriceField | undefined)[]): FileTrace['s
   return [...bySource.entries()].map(([id, value]) => ({ id, kind: value.kind, locations: value.locations }));
 }
 
-interface ResolvedLocalHypothesis {
-  readonly raw: string;
-  readonly canonical: string;
-  readonly position: 'prefix' | 'suffix';
-}
-
-function resolvedLocalHypothesis(
-  file: RuntimeFile,
-  resolved: RuntimeFile['priceAlternatives'][number] | undefined,
-): ResolvedLocalHypothesis | null {
-  if (file.match.status !== 'matched' || resolved === undefined) return null;
-  const groupRaw = resolved.record.scope.groupRaw?.trim();
-  if (!groupRaw) return null;
-
-  const identity = parseSvgIdentity(file.fileName);
-  if (identity.actionName === null) return null;
-  const selectedAction = file.match.selected.label;
-
-  // Action-only tiene precedencia: un token que coincide con un local real puede formar parte legítima de la acción.
-  if (normalizeActionName(identity.actionName) === normalizeActionName(selectedAction)) return null;
-
-  const candidates = findSvgLocalCandidates(identity, [{ label: groupRaw }]);
-  for (const candidate of candidates) {
-    const actionName = actionNameWithoutLocal(identity, candidate);
-    if (actionName === null || normalizeActionName(actionName) !== normalizeActionName(selectedAction)) continue;
-    return {
-      raw: candidate.raw,
-      canonical: candidate.canonical,
-      position: candidate.position,
-    };
-  }
-  return null;
-}
-
 function overlayMarkup(originalSvg: string, resultSvg: string): string {
   return `<!doctype html><html><body style="margin:0;background:transparent"><div style="display:grid"><div style="grid-area:1/1;opacity:.45">${originalSvg}</div><div style="grid-area:1/1;opacity:.75">${resultSvg}</div></div></body></html>`;
 }
 
-function previewView(file: RuntimeFile): PreviewView {
-  const preview = file.generation?.preview ?? buildSvgPreviewModel(file.sourceSvg);
+function outputGeneration(file: RuntimeFile, output?: RuntimeOutput) {
+  return output?.generation ?? file.generation;
+}
+
+function outputPreflight(file: RuntimeFile, output?: RuntimeOutput) {
+  return output?.preflight ?? file.preflight;
+}
+
+function previewView(file: RuntimeFile, output?: RuntimeOutput): PreviewView {
+  const generation = outputGeneration(file, output);
+  const preview = generation?.preview ?? buildSvgPreviewModel(file.sourceSvg);
   const noOpResult =
     file.analysis.engineClassification === 'price-absent'
     || file.analysis.engineClassification === 'already-replaced-editable-price'
       ? file.sourceSvg
       : undefined;
   const resultSvg = preview.resultSvg ?? noOpResult;
+  const labelName = output?.outputName ?? file.fileName;
   return {
     status: 'ready',
     original: { kind: 'markup', value: preview.originalSvg, label: `Original · ${file.fileName}` },
     ...(resultSvg === undefined
       ? {}
       : {
-          result: { kind: 'markup' as const, value: resultSvg, label: `Resultado · ${file.fileName}` },
+          result: { kind: 'markup' as const, value: resultSvg, label: `Resultado · ${labelName}` },
           overlay: {
             kind: 'markup' as const,
             value: overlayMarkup(preview.originalSvg, resultSvg),
-            label: `Overlay · ${file.fileName}`,
+            label: `Overlay · ${labelName}`,
           },
         }),
   };
 }
 
-export function fileTrace(file: RuntimeFile): FileTrace {
-  const resolved = file.priceAlternatives.length === 1 ? file.priceAlternatives[0] : undefined;
-  const local = resolvedLocalHypothesis(file, resolved);
+export function fileTrace(file: RuntimeFile, output?: RuntimeOutput): FileTrace {
+  const resolved = output?.pricing ?? (file.priceAlternatives.length === 1 ? file.priceAlternatives[0] : undefined);
   const normal = resolved?.record.prices.normal;
   const eminent = resolved?.record.prices.eminent;
+  const preflight = outputPreflight(file, output);
+  const exception = output?.issue?.message ?? file.priceIssue?.message;
   return {
     sourceSvg: { id: file.id, fileName: file.fileName },
-    local: local === null ? {} : { raw: local.raw, canonical: local.canonical },
+    local: file.identity.sourceLocal === null
+      ? {}
+      : { raw: file.identity.sourceLocal, canonical: file.identity.sourceLocalCanonical ?? undefined },
     match: file.match.status === 'matched'
       ? {
           method: file.match.method,
@@ -111,44 +85,67 @@ export function fileTrace(file: RuntimeFile): FileTrace {
     pricing: {
       ...(normal === undefined ? {} : { normal }),
       ...(eminent === undefined ? {} : { eminent }),
-      ...(file.priceIssue === undefined ? {} : { exception: file.priceIssue.message }),
+      ...(exception === undefined ? {} : { exception }),
     },
     sources: traceSources([normal, eminent]),
-    warnings: file.preflight?.issues.filter((item) => item.severity === 'WARNING') ?? [],
-    errors: file.preflight?.issues.filter((item) => item.severity === 'ERROR') ?? [],
-    stableId: file.id,
+    warnings: preflight?.issues.filter((item) => item.severity === 'WARNING') ?? [],
+    errors: preflight?.issues.filter((item) => item.severity === 'ERROR') ?? [],
+    stableId: output?.id ?? file.id,
   };
 }
 
 function completedProcessingState(warnings: readonly string[], errors: readonly string[]): ProcessingState {
-  if (warnings.length > 0 || errors.length > 0) return 'warning';
+  if (errors.length > 0) return 'warning';
+  if (warnings.length > 0) return 'warning';
   return 'ready';
 }
 
-export function fileView(file: RuntimeFile, source: RuntimeSource | null): WorkbenchFileView {
-  const resolved = source !== null && file.priceAlternatives.length === 1 ? file.priceAlternatives[0] : undefined;
-  const local = resolvedLocalHypothesis(file, resolved);
+function derivedTargets(file: RuntimeFile): NonNullable<WorkbenchFileView['derivedTargets']> {
+  return file.outputs.map((output) => ({
+    id: output.id,
+    pricingGroup: output.pricingGroup,
+    scopes: output.scopeLabels,
+    ...(output.pricing?.record.prices.normal === undefined ? {} : { normal: output.pricing.record.prices.normal }),
+    ...(output.pricing?.record.prices.eminent === undefined ? {} : { eminent: output.pricing.record.prices.eminent }),
+    overridden: output.overridden,
+    blocking: output.issue?.severity === 'ERROR' || output.preflight?.blocking === true,
+  }));
+}
+
+export function fileView(file: RuntimeFile, source: RuntimeSource | null, output?: RuntimeOutput): WorkbenchFileView {
+  const resolved = output?.pricing ?? (source !== null && file.priceAlternatives.length === 1 ? file.priceAlternatives[0] : undefined);
+  const preflight = outputPreflight(file, output);
+  const generation = outputGeneration(file, output);
+  const outputIssue = output?.issue ?? file.priceIssue;
   const warnings = [
     ...file.analysis.diagnostics
       .filter((item) => !item.code.includes('ambiguous'))
       .map((item) => diagnosticMessage(item.code, item.message)),
-    ...(source !== null && file.priceIssue?.severity === 'WARNING' ? [file.priceIssue.message] : []),
+    ...(source !== null && outputIssue?.severity === 'WARNING' ? [outputIssue.message] : []),
   ];
-  const errors = source !== null && file.priceIssue?.severity === 'ERROR' ? [file.priceIssue.message] : [];
+  const errors = source !== null && outputIssue?.severity === 'ERROR' ? [outputIssue.message] : [];
+  const outputName = output?.outputName ?? file.fileName;
+  const outputId = output?.id ?? file.id;
   return {
-    id: file.id,
-    fileName: file.fileName,
+    id: outputId,
+    fileName: outputName,
+    sourceArtworkFileName: file.fileName,
     processingState: completedProcessingState(warnings, errors),
-    ...(local === null ? {} : { detectedLocal: local.raw }),
+    ...(file.identity.sourceLocal === null ? {} : { detectedLocal: file.identity.sourceLocal }),
+    sourceScope: file.identity.sourceScope,
+    sourceLocal: file.identity.sourceLocal,
     classification: file.analysis.classification,
     ...(source === null
       ? {}
       : {
           match: file.match,
           sourceFileName: source.fileName,
-          trace: fileTrace(file),
+          trace: fileTrace(file, output),
         }),
-    ...(resolved === undefined ? {} : { rawGroup: resolved.record.scope.groupRaw ?? null, channel: resolved.record.channel }),
+    ...(output?.pricingGroup === undefined ? {} : { rawGroup: output.pricingGroup }),
+    ...(resolved === undefined ? {} : { channel: resolved.record.channel }),
+    ...(output === undefined ? {} : { targetScopes: output.scopeLabels }),
+    derivedTargets: derivedTargets(file),
     ...(resolved === undefined
       ? {}
       : {
@@ -158,12 +155,12 @@ export function fileView(file: RuntimeFile, source: RuntimeSource | null): Workb
             discount25: resolved.discount25,
           },
         }),
-    ...(file.preflight === undefined ? {} : { preflight: file.preflight }),
-    ...(file.generation === undefined ? {} : { generation: file.generation }),
-    preview: previewView(file),
+    ...(preflight === undefined ? {} : { preflight }),
+    ...(generation === undefined ? {} : { generation }),
+    preview: previewView(file, output),
     ...(warnings.length === 0 ? {} : { warnings }),
     ...(errors.length === 0 ? {} : { errors }),
-    exportable: file.preflight !== undefined && !file.preflight.blocking,
+    exportable: output?.overridden !== true && preflight !== undefined && !preflight.blocking,
   };
 }
 
@@ -190,19 +187,20 @@ export function sourceReadyMessage(source: RuntimeSource): string {
   for (const row of products) {
     for (const slot of row.slots) {
       if (slot.groupRaw.trim().length > 0) groups.add(slot.groupRaw);
-      channels.add(slot.channel);
+      channels.add(slot.channelHeaderRaw?.trim() || slot.channel);
       if (slot.field.state === 'known') knownPrices += 1;
     }
   }
 
   const diagnostics = source.diagnostics.length === 0 ? '' : ` · ${source.diagnostics.length} diagnóstico(s)`;
-  return `Listo · ${source.rows.length} fila(s) · ${products.length} producto(s) · ${groups.size} grupo(s) · ${channels.size} canal(es) · ${knownPrices} precio(s) explícito(s)${diagnostics}`;
+  return `Listo · ${source.rows.length} fila(s) · ${products.length} producto(s) · ${groups.size} grupo(s) · ${channels.size} scope(s) · ${knownPrices} precio(s) explícito(s)${diagnostics}`;
 }
 
 export function pendingSvgView(id: string, file: File, source: RuntimeSource | null): WorkbenchFileView {
   return {
     id,
     fileName: file.name,
+    sourceArtworkFileName: file.name,
     processingState: 'processing',
     processingMessage: 'Analizando archivo SVG.',
     ...(source === null ? {} : { sourceFileName: source.fileName }),
@@ -233,7 +231,7 @@ export function sourceSnapshot(source: RuntimeSource | null): AppRuntimeSnapshot
         prices: row.slots.map((slot) => ({
           tier: slot.tier,
           groupRaw: slot.groupRaw,
-          channel: slot.channel,
+          channel: slot.channelHeaderRaw?.trim() || slot.channel,
           state: slot.field.state,
           amount: slot.field.state === 'known' ? slot.field.amount : null,
         })),
