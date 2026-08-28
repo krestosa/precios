@@ -40,7 +40,9 @@ jobs:
       - name: Run W26 focal regressions
         if: github.ref == 'refs/heads/fix/post-center-canvas-stabilization'
         working-directory: handoff-output
-        run: npm exec vitest run tests/runtime/post-center-canvas-stabilization.e2e.test.ts tests/runtime/dashboard-center-canvas.test.ts tests/runtime/results-gallery-ui.test.ts tests/runtime/navigation-rail-shell.test.ts tests/runtime/product-hardcode-audit.test.ts
+        run: |
+          npm ci
+          npm exec vitest run tests/runtime/post-center-canvas-stabilization.e2e.test.ts tests/runtime/dashboard-center-canvas.test.ts tests/runtime/results-gallery-ui.test.ts tests/runtime/navigation-rail-shell.test.ts tests/runtime/product-hardcode-audit.test.ts
 
       - name: Upload exact dist artifact
         uses: actions/upload-artifact@v7.0.1
