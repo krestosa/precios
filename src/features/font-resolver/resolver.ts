@@ -20,6 +20,20 @@ export interface FontRegistrationResult {
   readonly diagnostics: readonly Diagnostic[];
 }
 
+function cancelledRegistration(inspection: InspectedFontUpload): FontRegistrationResult {
+  return {
+    status: 'rejected',
+    inspection,
+    diagnostics: [
+      ...inspection.diagnostics,
+      {
+        code: 'font.registration-cancelled',
+        message: 'El registro tipográfico fue cancelado porque el resolver cambió de ciclo de vida.',
+      },
+    ],
+  };
+}
+
 function normalize(value: string): string {
   return value.trim().replace(/\s+/g, ' ').toLocaleLowerCase('en-US');
 }
@@ -60,9 +74,12 @@ function systemCheck(spec: FontSpec): { exact: boolean; family: boolean } {
 
 export class BrowserFontResolver {
   private readonly uploads = new Map<string, UploadEntry>();
+  private lifecycleRevision = 0;
 
   async registerUpload(input: FontUploadInput): Promise<FontRegistrationResult> {
+    const revision = this.lifecycleRevision;
     const inspection = await inspectFontUpload(input);
+    if (revision !== this.lifecycleRevision) return cancelledRegistration(inspection);
     const diagnostics: Diagnostic[] = [...inspection.diagnostics];
     if (inspection.spec === undefined) {
       return { status: 'rejected', inspection, diagnostics };
@@ -81,6 +98,7 @@ export class BrowserFontResolver {
         weight: String(inspection.spec.weight),
       });
       await face.load();
+      if (revision !== this.lifecycleRevision) return cancelledRegistration(inspection);
       document.fonts.add(face);
       const entry: UploadEntry = {
         id: inspection.meta.id,
@@ -189,6 +207,7 @@ export class BrowserFontResolver {
   }
 
   dispose(): void {
+    this.lifecycleRevision += 1;
     if (typeof document !== 'undefined' && document.fonts !== undefined) {
       for (const entry of this.uploads.values()) document.fonts.delete(entry.face);
     }
