@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { matchName as matchRawName } from './name-matcher';
 import { prepareSvgPricingContext, type PricingMatrixModel } from './pricing-resolution';
+import { matchSvgRuntimeName } from './runtime-name-matcher';
 
 const DISTRACTORS = ['Story 1', 'Story 7', 'Feed 1', 'Feed 7', 'Mailing'] as const;
 
@@ -24,6 +26,32 @@ function selectedAction(context: ReturnType<typeof prepareSvgPricingContext>): s
 }
 
 describe('regresión de identidad para SVG reales', () => {
+  it.each([
+    ['Tres Tiempos Story 1.svg', 'Story 1'],
+    ['Tres Tiempos Story 7.svg', 'Story 7'],
+    ['Tres Tiempos Feed 1.svg', 'Feed 1'],
+    ['Tres Tiempos Feed 7.svg', 'Feed 7'],
+    ['Tres Tiempos Mailing.svg', 'Mailing'],
+  ] as const)('reproduce la ambigüedad previa de %s y verifica el adaptador corregido', (filename, distractor) => {
+    const targets = [
+      { id: 'action', label: 'Tres Tiempos' },
+      { id: 'distractor', label: distractor },
+    ];
+    const stem = filename.replace(/\.svg$/iu, '');
+    const legacy = matchRawName(stem, targets);
+    const fixed = matchSvgRuntimeName(stem, targets);
+
+    expect(legacy.status).toBe('ambiguous');
+    expect(legacy.candidates.map((candidate) => candidate.label)).toEqual(
+      expect.arrayContaining(['Tres Tiempos', distractor]),
+    );
+    expect(fixed.status).toBe('matched');
+    if (fixed.status === 'matched') {
+      expect(fixed.selected.label).toBe('Tres Tiempos');
+      expect(fixed.method).toBe('canonical-exact');
+    }
+  });
+
   it.each([
     ['Tres Tiempos Story 1.svg', 'story', 1],
     ['Tres Tiempos Story 7.svg', 'story', 7],
