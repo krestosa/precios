@@ -14,8 +14,6 @@ const testsDir = path.join(rootDir, 'tests');
 const lockPath = path.join(rootDir, 'package-lock.json');
 const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
-await fs.mkdir(logsDir, { recursive: true });
-
 function normalizeOutput(value) {
   return value.replace(/\r\n/g, '\n');
 }
@@ -167,7 +165,89 @@ async function collectHashTargets(distFiles, testFiles) {
   return [...distFiles, ...sourceFiles, ...testFiles, ...existing].sort((a, b) => path.relative(rootDir, a).localeCompare(path.relative(rootDir, b), 'en'));
 }
 
+async function fetchRequired(url, label, accept) {
+  const response = await fetch(url, {
+    redirect: 'follow',
+    signal: AbortSignal.timeout(20_000),
+    headers: {
+      accept,
+      'user-agent': 'precios-deployment-smoke/1.0',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`${label} respondió HTTP ${response.status} en ${response.url}.`);
+  }
+
+  return response;
+}
+
+function assetSource(tag) {
+  return tag.match(/\bsrc=(['"])([^'"]+)\1/iu)?.[2];
+}
+
+function assetHref(tag) {
+  return tag.match(/\bhref=(['"])([^'"]+)\1/iu)?.[2];
+}
+
+async function runDeploymentSmoke(urlValue) {
+  if (typeof urlValue !== 'string' || urlValue.trim() === '') {
+    throw new Error('El smoke de deployment requiere una URL HTTP(S).');
+  }
+
+  const requestedUrl = new URL(urlValue);
+  if (requestedUrl.protocol !== 'https:' && requestedUrl.protocol !== 'http:') {
+    throw new Error(`El smoke no admite el protocolo ${requestedUrl.protocol}.`);
+  }
+
+  const pageResponse = await fetchRequired(requestedUrl, 'La página desplegada', 'text/html,*/*;q=0.8');
+  const html = await pageResponse.text();
+  if (!/<main\b[^>]*\bid=(['"])app\1[^>]*>/iu.test(html)) {
+    throw new Error('La página desplegada no contiene el root #app esperado.');
+  }
+
+  const scriptTags = html.match(/<script\b[^>]*>/giu) ?? [];
+  const moduleTag = scriptTags.find((tag) => /\btype=(['"])module\1/iu.test(tag) && assetSource(tag) !== undefined);
+  const moduleSource = moduleTag === undefined ? undefined : assetSource(moduleTag);
+  if (moduleSource === undefined) {
+    throw new Error('La página desplegada no referencia un entrypoint de módulo.');
+  }
+
+  const moduleUrl = new URL(moduleSource, pageResponse.url);
+  const moduleResponse = await fetchRequired(moduleUrl, 'El módulo principal desplegado', '*/*');
+  const moduleBytes = await moduleResponse.arrayBuffer();
+  if (moduleBytes.byteLength === 0) {
+    throw new Error('El módulo principal desplegado está vacío.');
+  }
+
+  const styleTags = html.match(/<link\b[^>]*>/giu) ?? [];
+  const stylesheetTag = styleTags.find((tag) => /\brel=(['"])stylesheet\1/iu.test(tag) && assetHref(tag) !== undefined);
+  const stylesheetHref = stylesheetTag === undefined ? undefined : assetHref(stylesheetTag);
+  let stylesheetStatus = null;
+  if (stylesheetHref !== undefined) {
+    const stylesheetUrl = new URL(stylesheetHref, pageResponse.url);
+    const stylesheetResponse = await fetchRequired(stylesheetUrl, 'La hoja de estilos desplegada', 'text/css,*/*;q=0.8');
+    const stylesheetBytes = await stylesheetResponse.arrayBuffer();
+    if (stylesheetBytes.byteLength === 0) {
+      throw new Error('La hoja de estilos desplegada está vacía.');
+    }
+    stylesheetStatus = stylesheetResponse.status;
+  }
+
+  console.log(JSON.stringify({
+    smoke: 'passed',
+    requestedUrl: requestedUrl.href,
+    finalUrl: pageResponse.url,
+    pageStatus: pageResponse.status,
+    moduleUrl: moduleResponse.url,
+    moduleStatus: moduleResponse.status,
+    stylesheetStatus,
+  }));
+}
+
 async function main() {
+  await fs.mkdir(logsDir, { recursive: true });
+
   const versions = [];
   const nodeVersion = await runCommand('node-version', process.execPath, ['--version']);
   versions.push(`node ${nodeVersion.output.trim()}`);
@@ -248,4 +328,9 @@ async function main() {
   console.log(`Pipeline completado. dist contiene ${distFiles.length} archivo(s).`);
 }
 
-await main();
+const smokeIndex = process.argv.indexOf('--smoke-url');
+if (smokeIndex >= 0) {
+  await runDeploymentSmoke(process.argv[smokeIndex + 1]);
+} else {
+  await main();
+}
