@@ -39,6 +39,7 @@ export class ResultsGalleryTemplate extends HTMLElement {
   private readonly fitButton: HTMLButtonElement;
   private readonly closeButton: HTMLButtonElement;
   private filesValue: readonly WorkbenchFileView[] = [];
+  private selectedFileIdValue: string | undefined;
   private activeItem: GalleryItemView | undefined;
   private transform: LightboxTransform = FIT_LIGHTBOX_TRANSFORM;
   private drag: DragState | undefined;
@@ -80,9 +81,12 @@ export class ResultsGalleryTemplate extends HTMLElement {
 
   set files(value: readonly WorkbenchFileView[]) { this.filesValue = value; this.sync(); }
   get files(): readonly WorkbenchFileView[] { return this.filesValue; }
+  set selectedFileId(value: string | undefined) { this.selectedFileIdValue = value; this.sync(); }
+  get selectedFileId(): string | undefined { return this.selectedFileIdValue; }
 
   connectedCallback(): void {
     upgradeProperty(this, 'files');
+    upgradeProperty(this, 'selectedFileId');
     this.sync();
   }
 
@@ -107,20 +111,30 @@ export class ResultsGalleryTemplate extends HTMLElement {
       const status = requiredElement<HTMLElement>(fragment, '.state-badge');
       const fileName = requiredElement<HTMLElement>(fragment, '.file-name');
       const target = requiredElement<HTMLElement>(fragment, '.target');
+      const selectButton = requiredElement<HTMLButtonElement>(fragment, '.select-button');
       const exportButton = requiredElement<HTMLButtonElement>(fragment, '.export-button');
+      const selected = item.id === this.selectedFileIdValue;
 
       card.dataset.state = item.statusKind;
+      card.classList.toggle('selected', selected);
       fileName.textContent = item.fileName;
       target.textContent = item.targetLabel;
       target.title = item.targetLabel;
       status.textContent = item.statusLabel;
       fileName.title = item.fileName;
+      selectButton.textContent = selected ? 'Seleccionado' : 'Mostrar';
+      selectButton.setAttribute('aria-pressed', String(selected));
+      selectButton.setAttribute('aria-label', `${selected ? 'Output seleccionado' : 'Mostrar en canvas'}: ${item.fileName}`);
+      selectButton.addEventListener('click', () => emitUiTemplateEvent(this, 'ui:file-activate', { id: item.id }));
 
       if (item.svg) {
         thumbnail.src = svgToDataUrl(item.svg);
         thumbnail.alt = `Resultado procesado de ${item.fileName}`;
         previewButton.setAttribute('aria-label', `Abrir resultado procesado de ${item.fileName}`);
-        previewButton.addEventListener('click', () => this.openLightbox(item, previewButton));
+        previewButton.addEventListener('click', () => {
+          emitUiTemplateEvent(this, 'ui:file-activate', { id: item.id });
+          this.openLightbox(item, previewButton);
+        });
         placeholder.hidden = true;
       } else {
         previewButton.hidden = true;
