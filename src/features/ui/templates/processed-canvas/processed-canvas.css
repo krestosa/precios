@@ -1,0 +1,23 @@
+:host { display: block; width: 100%; height: 100%; min-width: 0; min-height: 0; color: var(--pw-color-on-surface); }
+* { box-sizing: border-box; }
+.viewer { position: relative; width: 100%; height: 100%; min-width: 0; min-height: 0; overflow: hidden; background: var(--pw-color-surface-container-low); }
+.viewer-viewport { display: grid; place-items: center; width: 100%; height: 100%; min-width: 0; min-height: 0; overflow: hidden; cursor: default; touch-action: none; user-select: none; }
+.viewer-viewport:focus-visible, .tool-button:focus-visible, .fit-button:focus-visible { outline: var(--pw-focus-width) solid var(--pw-color-primary); outline-offset: calc(-1 * var(--pw-focus-width)); }
+.viewer-viewport.can-pan { cursor: grab; }
+.viewer-viewport.dragging { cursor: grabbing; }
+.viewer-image { display: block; width: auto; height: auto; max-width: 100%; max-height: 100%; object-fit: contain; transform-origin: center center; transition: transform var(--pw-motion-quick) var(--pw-easing-standard); pointer-events: none; user-select: none; -webkit-user-drag: none; }
+.viewer-viewport.dragging .viewer-image { transition: none; }
+.viewer-empty { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: var(--pw-space-xs); padding: var(--pw-space-xl); text-align: center; pointer-events: none; }
+.viewer-empty strong { font: var(--pw-type-title-medium); }
+.viewer-empty span { max-width: 360px; color: var(--pw-color-on-surface-variant); font: var(--pw-type-body-small); }
+.viewer-toolbar { position: absolute; top: var(--pw-space-sm); right: var(--pw-space-sm); z-index: 2; display: flex; align-items: center; gap: var(--pw-space-xs); padding: 6px; border-radius: var(--pw-shape-full); background: color-mix(in srgb, var(--pw-color-surface-container-highest) 90%, transparent); box-shadow: var(--pw-elevation-level2); backdrop-filter: blur(8px); }
+.tool-button, .fit-button { min-height: 36px; border: 0; border-radius: var(--pw-shape-full); background: transparent; color: var(--pw-color-on-surface); font: var(--pw-type-label-medium); cursor: pointer; }
+.tool-button { width: 36px; padding: 0; font-size: 20px; }
+.fit-button { padding: 0 var(--pw-space-md); }
+.tool-button:hover, .fit-button:hover { background: var(--pw-color-surface-container-high); }
+.tool-button:disabled { cursor: default; opacity: 0.38; }
+.zoom-level { min-width: 48px; text-align: center; font: var(--pw-type-label-small); font-variant-numeric: tabular-nums; }
+[hidden] { display: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  .viewer-image { transition: none; }
+}
