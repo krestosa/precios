@@ -1,0 +1,15 @@
+:host { display: block; min-height: 100%; color: var(--pw-color-text); background: var(--pw-color-canvas); font-family: var(--pw-font-family); }
+* { box-sizing: border-box; }
+.app { min-height: 100%; padding: clamp(var(--pw-space-3), 2vw, var(--pw-space-6)); }
+.topbar { display: flex; justify-content: space-between; gap: var(--pw-space-4); align-items: flex-start; margin-bottom: var(--pw-space-4); }
+.eyebrow { margin: 0 0 var(--pw-space-1); color: var(--pw-color-accent); font-size: var(--pw-font-size-sm); font-weight: var(--pw-font-weight-strong); text-transform: uppercase; letter-spacing: 0.08em; }
+h1 { margin: 0; font-size: clamp(var(--pw-font-size-xl), 3vw, var(--pw-font-size-2xl)); line-height: var(--pw-line-height-tight); }
+.subtitle { max-width: 48rem; margin: var(--pw-space-2) 0 0; color: var(--pw-color-text-muted); font-size: var(--pw-font-size-md); line-height: var(--pw-line-height-relaxed); }
+.top-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--pw-space-2); align-items: center; }
+.progress { min-width: 12rem; }
+.stages { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(8.5rem, 1fr); gap: var(--pw-space-1); margin: 0 0 var(--pw-space-4); padding: var(--pw-space-2); overflow-x: auto; border: var(--pw-border-width) solid var(--pw-color-border); border-radius: var(--pw-radius-lg); background: var(--pw-color-surface); }
+.stage { display: flex; align-items: center; gap: var(--pw-space-2); min-width: 0; padding: var(--pw-space-2) var(--pw-space-3); border-radius: var(--pw-radius-md); background: var(--pw-color-canvas); color: var(--pw-color-text-muted); font-size: var(--pw-font-size-sm); font-weight: var(--pw-font-weight-strong); white-space: nowrap; }
+.stage span { display: grid; place-items: center; flex: 0 0 var(--pw-space-5); aspect-ratio: 1; border-radius: var(--pw-radius-pill); color: var(--pw-color-surface); background: var(--pw-color-accent); }
+.stack { display: grid; gap: var(--pw-space-3); }
+[hidden] { display: none !important; }
+@media (max-width: 38rem) { .topbar { display: grid; } .top-actions { justify-content: flex-start; } }

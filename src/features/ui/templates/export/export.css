@@ -1,0 +1,10 @@
+:host { display: block; }
+.stack { display: grid; gap: var(--pw-space-3); }
+.row { display: flex; gap: var(--pw-space-2); align-items: center; flex-wrap: wrap; }
+.note { margin: 0; line-height: var(--pw-line-height-relaxed); }
+.export-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--pw-space-2); }
+.export-item { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--pw-space-3); padding: var(--pw-space-3); border: var(--pw-border-width) solid var(--pw-color-border); border-radius: var(--pw-radius-md); }
+.copy { min-width: 0; }
+.copy strong { display: block; overflow-wrap: anywhere; }
+.copy span { color: var(--pw-color-text-muted); font-size: var(--pw-font-size-sm); }
+[hidden] { display: none !important; }

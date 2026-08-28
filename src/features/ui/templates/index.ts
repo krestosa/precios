@@ -1,6 +1,8 @@
-export { PREVIEW_TABS, reviewTemplate, type ReviewTemplateState } from './review.template';
-export { fontsTemplate, type FontsTemplateState } from './fonts.template';
-export { preflightTemplate } from './preflight.template';
-export { exportTemplate, type ExportTemplateState } from './export.template';
-export { traceTemplate, type TraceTemplateState } from './trace.template';
-export { workbenchShellTemplate, type WorkbenchShellTemplateState } from './workbench-shell.template';
+export * from './source-queue';
+export * from './fonts';
+export * from './review';
+export * from './preflight';
+export * from './export';
+export * from './trace';
+export * from './workbench-shell';
+export { emitUiTemplateEvent, type UiTemplateEventMap } from './template-events';

@@ -1,0 +1,52 @@
+<pw-empty-state class="no-file" heading="Sin SVG seleccionados" message="Cargá archivos para habilitar matching, precios, preflight y preview."></pw-empty-state>
+<div class="review" hidden>
+  <pw-panel heading="Archivo seleccionado" description="Revisión desacoplada de parsing, matching, pricing y generación.">
+    <div class="stack">
+      <div class="row-between"><div class="filename"></div><div class="row"><pw-status-chip class="preflight"></pw-status-chip><pw-button class="details">Ver trazabilidad</pw-button></div></div>
+      <div class="summary-grid">
+        <div class="metric"><span>Local detectado</span><strong data-summary="local"></strong></div>
+        <div class="metric"><span>Matching</span><strong data-summary="matching"></strong></div>
+        <div class="metric"><span>Placeholder / precio</span><strong data-summary="classification"></strong></div>
+      </div>
+    </div>
+  </pw-panel>
+
+  <pw-panel heading="Revisión de matching" description="Las sugerencias aproximadas y ambigüedades requieren una elección humana.">
+    <pw-empty-state class="match-empty"></pw-empty-state>
+    <div class="match-resolved" hidden><div class="row"><pw-status-chip tone="success" label="Coincidencia resuelta"></pw-status-chip><span class="match-meta"></span></div><strong class="match-label"></strong><div class="match-canonical"></div></div>
+    <div class="match-review" hidden>
+      <div class="row"><pw-status-chip class="match-warning" tone="warning"></pw-status-chip><span class="match-confidence"></span></div>
+      <ul class="candidate-list" aria-label="Candidatos de matching"></ul>
+      <template class="candidate-template"><li class="candidate"><div><strong></strong><div class="candidate-meta"></div></div><span class="candidate-canonical"></span></li></template>
+      <label for="candidate-select"><strong>Selección manual</strong></label>
+      <select id="candidate-select"><option value="">Elegir candidato…</option></select>
+      <template class="option-template"><option></option></template>
+      <div class="row"><pw-button class="apply-session">Aplicar a sesión</pw-button><pw-button class="apply-batch">Aplicar al lote</pw-button></div>
+    </div>
+  </pw-panel>
+
+  <pw-panel heading="Precios" description="NORMAL y ÉMINENT permanecen independientes; ausencia significa desconocido.">
+    <div class="stack">
+      <div class="price-grid">
+        <article class="price-card" aria-label="Precio NORMAL"><h3>NORMAL</h3><p class="price-value normal-value"></p><div class="provenance normal-provenance"></div></article>
+        <article class="price-card" aria-label="Precio ÉMINENT"><h3>ÉMINENT</h3><p class="price-value eminent-value"></p><div class="provenance eminent-provenance"></div></article>
+      </div>
+      <div class="validation" role="status"></div>
+    </div>
+  </pw-panel>
+
+  <pw-panel heading="Incidencias visuales" description="Overflow, alineación y fuentes se muestran como diagnósticos accionables.">
+    <pw-empty-state class="issues-empty" heading="Sin incidencias de layout" message="No se reportaron problemas de overflow, alineación o fuentes para este archivo."></pw-empty-state>
+    <ul class="issue-list" aria-label="Incidencias visuales" hidden></ul>
+    <template class="issue-template"><li class="issue"><div><strong></strong><span></span></div><pw-button></pw-button></li></template>
+  </pw-panel>
+
+  <pw-panel heading="Preview" description="La UI recibe contenido ya procesado y no modifica el SVG.">
+    <div class="preview-toolbar">
+      <pw-segmented-tabs class="preview-tabs"></pw-segmented-tabs>
+      <div class="preview-controls" aria-label="Controles de viewport"><pw-status-chip tone="neutral" label="Pan preparado"></pw-status-chip><pw-button data-command="fit">Fit</pw-button><pw-button data-command="zoom-out" aria-label="Alejar preview">−</pw-button><span class="zoom" aria-live="polite"></span><pw-button data-command="zoom-in" aria-label="Acercar preview">+</pw-button><pw-button data-command="reset">Reset</pw-button></div>
+    </div>
+    <pw-empty-state class="preview-empty"></pw-empty-state>
+    <div class="preview-viewport" tabindex="0" aria-label="Viewport de preview con desplazamiento preparado" hidden><div class="preview-content"><iframe sandbox=""></iframe><img alt="" /></div></div>
+  </pw-panel>
+</div>

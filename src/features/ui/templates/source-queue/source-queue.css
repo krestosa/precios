@@ -1,0 +1,5 @@
+:host { display: grid; gap: var(--pw-space-3); }
+.stack { display: grid; gap: var(--pw-space-3); }
+.source-file { font-size: var(--pw-font-size-sm); line-height: var(--pw-line-height-normal); }
+.message { color: var(--pw-color-text-muted); margin-top: var(--pw-space-1); }
+[hidden] { display: none !important; }

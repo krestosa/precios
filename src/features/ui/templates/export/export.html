@@ -1,0 +1,11 @@
+<pw-panel heading="Export" description="Archivos individuales, lote, ZIP y manifest de trazabilidad.">
+  <div class="stack">
+    <p class="note"></p>
+    <pw-button class="batch" variant="primary"></pw-button>
+    <pw-button class="zip">Generar ZIP</pw-button>
+    <div class="row"><pw-button class="manifest-json">Manifest JSON</pw-button><pw-button class="manifest-csv">Manifest CSV</pw-button></div>
+    <pw-empty-state class="empty" heading="Sin archivos exportables" message="Los controles se habilitarán cuando el adaptador marque archivos como exportables."></pw-empty-state>
+    <ul class="export-list" aria-label="Archivos individuales exportables" hidden></ul>
+    <template class="item-template"><li class="export-item"><div class="copy"><strong></strong><span>Listo para exportación individual</span></div><pw-button>Exportar</pw-button></li></template>
+  </div>
+</pw-panel>

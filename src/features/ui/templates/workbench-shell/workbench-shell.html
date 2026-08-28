@@ -1,0 +1,14 @@
+<div class="app">
+  <header class="topbar">
+    <div><p class="eyebrow">Workbench local</p><h1>Actualización de precios en SVG</h1><p class="subtitle">Flujo por etapas para cargar fuentes locales, revisar matching y precios, validar preflight, comparar resultados y exportar sólo los archivos aptos.</p></div>
+    <div class="top-actions"><pw-status-chip tone="info" label="Procesamiento local"></pw-status-chip><pw-progress class="progress" hidden></pw-progress></div>
+  </header>
+  <nav class="stages" aria-label="Etapas del flujo">
+    <div class="stage"><span>1</span>Fuente local</div><div class="stage"><span>2</span>SVG</div><div class="stage"><span>3</span>Matching</div><div class="stage"><span>4</span>Precios</div><div class="stage"><span>5</span>Preflight</div><div class="stage"><span>6</span>Preview</div><div class="stage"><span>7</span>Export</div>
+  </nav>
+  <pw-workbench-layout>
+    <div slot="left" class="stack"><pw-source-queue-template></pw-source-queue-template><pw-fonts-template></pw-fonts-template></div>
+    <div slot="center" class="stack"><pw-review-template></pw-review-template></div>
+    <div slot="right" class="stack"><pw-preflight-template></pw-preflight-template><pw-export-template></pw-export-template></div>
+  </pw-workbench-layout>
+</div>

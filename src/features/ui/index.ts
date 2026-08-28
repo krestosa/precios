@@ -1,4 +1,4 @@
-export { PriceWorkbench } from './ui-workbench';
+export { PriceWorkbench } from './workbench';
 export { WorkbenchUiStore, type WorkbenchUiState } from './ui-store';
 export { dispatchWorkbenchEvent, type WorkbenchEventMap, type WorkbenchEventName, type MatchApplyScope, type PreviewCommand, type ExportKind, type ManifestUiFormat } from './events';
 export {

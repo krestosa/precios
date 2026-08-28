@@ -1,0 +1,8 @@
+:host { display: block; }
+.stack { display: grid; gap: var(--pw-space-3); }
+.summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--pw-space-2); }
+.preflight-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--pw-space-2); }
+.preflight-item { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--pw-space-3); padding: var(--pw-space-3); border: var(--pw-border-width) solid var(--pw-color-border); border-radius: var(--pw-radius-md); }
+.meta { color: var(--pw-color-text-muted); font-size: var(--pw-font-size-sm); margin-top: var(--pw-space-1); }
+[hidden] { display: none !important; }
+@media (max-width: 38rem) { .summary { grid-template-columns: 1fr; } }
