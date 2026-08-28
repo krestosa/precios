@@ -18,7 +18,7 @@ select:focus-visible { outline: var(--pw-focus-width) solid var(--pw-color-prima
 .price-value { margin: 0; font: var(--pw-type-title-large); letter-spacing: var(--pw-type-title-large-letter-spacing); }
 .price-value.unknown { color: var(--pw-color-on-surface-variant); font: var(--pw-type-title-medium); letter-spacing: var(--pw-type-title-medium-letter-spacing); }
 .provenance { margin-top: var(--pw-space-sm); color: var(--pw-color-on-surface-variant); font: var(--pw-type-body-small); letter-spacing: var(--pw-type-body-small-letter-spacing); white-space: pre-line; overflow-wrap: anywhere; }
-.validation { padding: var(--pw-space-md); border-left: var(--pw-focus-width) solid var(--pw-color-primary); background: var(--pw-color-primary-container); color: var(--pw-color-primary); font: var(--pw-type-body-small); letter-spacing: var(--pw-type-body-small-letter-spacing); }
+.validation { padding: var(--pw-space-md); border-left: var(--pw-focus-width) solid var(--pw-color-primary); background: var(--pw-color-primary-container); color: var(--pw-color-on-primary-container); font: var(--pw-type-body-small); letter-spacing: var(--pw-type-body-small-letter-spacing); }
 .validation.warning { border-color: var(--pw-color-warning); background: var(--pw-color-warning-container); color: var(--pw-color-warning); }
 .issue span { display: block; color: var(--pw-color-on-surface-variant); font: var(--pw-type-body-small); letter-spacing: var(--pw-type-body-small-letter-spacing); }
 .preview-toolbar { display: flex; justify-content: space-between; gap: var(--pw-space-md); align-items: center; flex-wrap: wrap; margin-bottom: var(--pw-space-md); }

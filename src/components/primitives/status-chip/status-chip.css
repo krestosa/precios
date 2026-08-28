@@ -11,7 +11,7 @@
   color: var(--pw-color-on-surface-variant);
   white-space: nowrap;
 }
-:host([tone='info']) .chip { color: var(--pw-color-primary); background: var(--pw-color-primary-container); }
+:host([tone='info']) .chip { color: var(--pw-color-on-primary-container); background: var(--pw-color-primary-container); }
 :host([tone='success']) .chip { color: var(--pw-color-success); background: var(--pw-color-success-container); }
 :host([tone='warning']) .chip { color: var(--pw-color-warning); background: var(--pw-color-warning-container); }
-:host([tone='danger']) .chip { color: var(--pw-color-error); background: var(--pw-color-error-container); }
+:host([tone='danger']) .chip { color: var(--pw-color-on-error-container); background: var(--pw-color-error-container); }
