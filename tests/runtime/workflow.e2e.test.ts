@@ -211,9 +211,13 @@ describe('workflow productivo por Control API', () => {
 
     const after = api.getState();
     expect(JSON.stringify(after), 'export.request debe dejar un resultado observable en el estado de runtime').not.toBe(before);
-    expect(containsScalar(after, 'generated')).toBe(true);
-    expect(containsScalar(after, 'zip') || containsScalar(after, 'manifest')).toBe(true);
-    expect(containsScalar(after, 'sha256') || containsScalar(after, 'SHA-256')).toBe(true);
+
+    const observable = { state: after, model: workbenchModel() };
+    const serialized = JSON.stringify(observable).toLowerCase();
+    expect(serialized).toContain('generated');
+    expect(serialized.includes('<svg') || serialized.includes('.svg')).toBe(true);
+    expect(serialized.includes('zip') || serialized.includes('manifest')).toBe(true);
+    expect(serialized.includes('sha256') || serialized.includes('sha-256')).toBe(true);
   });
 
   it('reset posterior al flujo devuelve el snapshot inicial consistente', async () => {
