@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   bootControlRuntime,
   containsScalar,
@@ -48,6 +48,11 @@ function matchCandidatesFromWorkbench(): readonly Record<string, unknown>[] {
   const selected = model['files'][0];
   if (!isRecord(selected) || !isRecord(selected['match']) || !Array.isArray(selected['match']['candidates'])) return [];
   return selected['match']['candidates'].filter(isRecord);
+}
+
+function onePixelPng(): Uint8Array {
+  const binary = atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2nQAAAABJRU5ErkJggg==');
+  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
 }
 
 describe('workflow productivo por Control API', () => {
@@ -219,24 +224,44 @@ describe('workflow productivo por Control API', () => {
     expect(getPath(fit, 'view', 'zoom')).toBe(1);
   });
 
-  it('export.request debe producir un resultado observable y no sólo aceptar el evento', async () => {
-    await loadPricingSource(api);
-    await loadSvg(api, 'ROLL EXACTO.svg');
-    await executeAndWaitForState(api, 'preflight.run', undefined, (state) => getPath(state, 'preflight', 'fileCount') === 1);
+  it('export.request produce PNG observable desde un resultado exportable', async () => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(function (type) {
+      if (type !== '2d') return null;
+      return { drawImage: () => undefined } as unknown as CanvasRenderingContext2D;
+    });
+    vi.stubGlobal('createImageBitmap', async () => ({ width: 1, height: 1, close: () => undefined }) as unknown as ImageBitmap);
+    vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation((callback) => {
+      callback(new Blob([onePixelPng()], { type: 'image/png' }));
+    });
 
-    const before = JSON.stringify(api.getState());
-    const result = await api.execute('export.request', { kind: 'zip' });
-    expect(result.ok).toBe(true);
+    try {
+      await loadPricingSource(api);
+      const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1" viewBox="0 0 1 1"></svg>';
+      await executeAndWaitForState(
+        api,
+        'svg.load',
+        { files: asFile(svg, 'SIN PRECIO EXPORT.svg', 'image/svg+xml') },
+        (state) => getPath(state, 'loads', 'svgStatus') === 'ready' && getPath(state, 'counts', 'svgFiles') === 1,
+      );
+      await executeAndWaitForState(api, 'preflight.run', undefined, (state) => getPath(state, 'preflight', 'fileCount') === 1);
 
-    const after = api.getState();
-    expect(JSON.stringify(after), 'export.request debe dejar un resultado observable en el estado de runtime').not.toBe(before);
+      const before = JSON.stringify(api.getState());
+      const result = await api.execute('export.request', { kind: 'zip' });
+      expect(result.ok).toBe(true);
 
-    const observable = { state: after, model: workbenchModel() };
-    const serialized = JSON.stringify(observable).toLowerCase();
-    expect(serialized).toContain('generated');
-    expect(serialized.includes('<svg') || serialized.includes('.svg')).toBe(true);
-    expect(serialized.includes('zip') || serialized.includes('manifest')).toBe(true);
-    expect(serialized.includes('sha256') || serialized.includes('sha-256')).toBe(true);
+      const after = api.getState();
+      expect(JSON.stringify(after), 'export.request debe dejar un resultado observable en el estado de runtime').not.toBe(before);
+
+      const observable = { state: after, model: workbenchModel() };
+      const serialized = JSON.stringify(observable).toLowerCase();
+      expect(serialized).toContain('generated');
+      expect(serialized).toContain('.png');
+      expect(serialized.includes('zip') || serialized.includes('manifest')).toBe(true);
+      expect(serialized.includes('sha256') || serialized.includes('sha-256')).toBe(true);
+    } finally {
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+    }
   });
 
   it('reset posterior al flujo devuelve el snapshot inicial consistente', async () => {
