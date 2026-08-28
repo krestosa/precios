@@ -243,7 +243,10 @@ export function parseSvgIdentity(
     : tokens.slice(0, detectedFormat.formatTokenIndex);
   const candidates = localCandidates(actionAndLocalTokens, options.localHints ?? []);
   const selectedLocal = selectLocalCandidate(candidates);
-  const actionTokens = removeLocalTokens(actionAndLocalTokens, selectedLocal);
+  const ambiguousLocal = candidates.length > 1;
+  const actionTokens = ambiguousLocal
+    ? []
+    : removeLocalTokens(actionAndLocalTokens, selectedLocal);
   const actionName = actionTokens.length === 0 ? null : actionTokens.join(' ');
   const actionCanonical = actionName === null ? null : normalizeActionName(actionName);
 
