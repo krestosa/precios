@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - integration/preview-runtime
+      - fix/post-center-canvas-stabilization
   workflow_dispatch:
 
 concurrency:
@@ -35,6 +36,11 @@ jobs:
           BUILD_RUN_ID: ${{ github.run_id }}
           BUILD_TIMESTAMP: ${{ github.event.head_commit.timestamp || '' }}
         run: sh ./handoff-output/install-build.sh
+
+      - name: Run W26 focal regressions
+        if: github.ref == 'refs/heads/fix/post-center-canvas-stabilization'
+        working-directory: handoff-output
+        run: npm exec vitest run tests/runtime/post-center-canvas-stabilization.e2e.test.ts tests/runtime/dashboard-center-canvas.test.ts tests/runtime/results-gallery-ui.test.ts tests/runtime/navigation-rail-shell.test.ts tests/runtime/product-hardcode-audit.test.ts
 
       - name: Upload exact dist artifact
         uses: actions/upload-artifact@v7.0.1
@@ -68,6 +74,7 @@ jobs:
           path: handoff-output/dist
 
   deploy:
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/integration/preview-runtime'
     needs: build
     runs-on: ubuntu-latest
     permissions:
