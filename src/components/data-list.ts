@@ -21,8 +21,8 @@ export class DataList extends LitElement {
     button[aria-current='true'] { border-color: var(--pw-color-accent, #1859c9); box-shadow: inset 3px 0 0 var(--pw-color-accent, #1859c9); }
     button:focus-visible { outline: 3px solid color-mix(in srgb, var(--pw-color-accent, #1859c9) 30%, transparent); outline-offset: 2px; }
     strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    small { color: var(--pw-color-ink-muted, #59636e); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .meta { grid-row: 1 / span 2; grid-column: 2; align-self: center; font-size: var(--pw-font-size-sm, .75rem); color: var(--pw-color-ink-muted, #59636e); }
+    small { color: var(--pw-color-ink-muted, #59636e); line-height: 1.35; overflow-wrap: anywhere; }
+    .meta { grid-row: 1 / span 2; grid-column: 2; align-self: start; font-size: var(--pw-font-size-sm, .75rem); color: var(--pw-color-ink-muted, #59636e); white-space: nowrap; }
   `;
 
   items: readonly DataListItem[] = [];
