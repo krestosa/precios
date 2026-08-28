@@ -30,9 +30,12 @@ export class ProcessedCanvasTemplate extends HTMLElement {
   private readonly zoomInButton: HTMLButtonElement;
   private readonly fitButton: HTMLButtonElement;
   private fileValue: WorkbenchFileView | undefined;
+  private renderedFileId: string | undefined;
   private renderedSvg: string | undefined;
   private transform: LightboxTransform = FIT_LIGHTBOX_TRANSFORM;
   private drag: DragState | undefined;
+  private resizeObserver: ResizeObserver | undefined;
+  private resizeFallbackAttached = false;
 
   constructor() {
     super();
@@ -67,10 +70,21 @@ export class ProcessedCanvasTemplate extends HTMLElement {
 
   connectedCallback(): void {
     upgradeProperty(this, 'file');
+    this.installResizeTracking();
     this.sync();
   }
 
+  disconnectedCallback(): void {
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = undefined;
+    if (this.resizeFallbackAttached) {
+      window.removeEventListener('resize', this.onViewportResize);
+      this.resizeFallbackAttached = false;
+    }
+  }
+
   private sync(): void {
+    const fileId = this.fileValue?.id;
     const svg = this.fileValue?.generation?.status === 'generated' ? this.fileValue.generation.svg : undefined;
     const hasSvg = Boolean(svg);
     this.empty.hidden = hasSvg;
@@ -78,20 +92,43 @@ export class ProcessedCanvasTemplate extends HTMLElement {
     this.image.hidden = !hasSvg;
 
     if (!svg) {
+      this.renderedFileId = undefined;
       this.renderedSvg = undefined;
       this.image.removeAttribute('src');
       this.image.alt = '';
+      this.cancelDrag();
       this.resetTransform();
       return;
     }
 
-    if (svg !== this.renderedSvg) {
+    if (fileId !== this.renderedFileId || svg !== this.renderedSvg) {
+      this.renderedFileId = fileId;
       this.renderedSvg = svg;
       this.image.src = svgToDataUrl(svg);
       this.image.alt = 'Resultado procesado seleccionado';
+      this.cancelDrag();
       this.resetTransform();
     }
   }
+
+  private installResizeTracking(): void {
+    if (typeof ResizeObserver !== 'undefined') {
+      if (this.resizeObserver !== undefined) return;
+      this.resizeObserver = new ResizeObserver(() => this.onViewportResize());
+      this.resizeObserver.observe(this.viewport);
+      return;
+    }
+    if (this.resizeFallbackAttached) return;
+    window.addEventListener('resize', this.onViewportResize);
+    this.resizeFallbackAttached = true;
+  }
+
+  private readonly onViewportResize = (): void => {
+    if (!this.renderedSvg || this.transform.zoom <= LIGHTBOX_MIN_ZOOM) return;
+    const { width, height } = this.viewportSize();
+    this.transform = panFromDrag(this.transform, 0, 0, width, height);
+    this.applyTransform();
+  };
 
   private viewportSize(): { readonly width: number; readonly height: number } {
     const rect = this.viewport.getBoundingClientRect();
@@ -150,6 +187,10 @@ export class ProcessedCanvasTemplate extends HTMLElement {
   private onPointerEnd(event: PointerEvent): void {
     if (!this.drag || this.drag.pointerId !== event.pointerId) return;
     if ('hasPointerCapture' in this.viewport && this.viewport.hasPointerCapture(event.pointerId)) this.viewport.releasePointerCapture(event.pointerId);
+    this.cancelDrag();
+  }
+
+  private cancelDrag(): void {
     this.drag = undefined;
     this.viewport.classList.remove('dragging');
   }
