@@ -55,6 +55,18 @@ describe('results gallery', () => {
     expect(items[1].svg).toBeUndefined();
   });
 
+  it('etiqueta cada output con su target propio y no con la lista completa de targets derivados', () => {
+    const derivedTargets = [
+      { id: 'target-a', pricingGroup: 'ALPHA', scopes: ['SALON'], overridden: false, blocking: false },
+      { id: 'target-b', pricingGroup: 'BETA', scopes: ['DELI'], overridden: false, blocking: false },
+    ] as const;
+    const items = deriveGalleryItems([
+      generatedFile({ id: 'a', fileName: 'a.svg', rawGroup: 'ALPHA', targetScopes: ['SALON'], derivedTargets }),
+      generatedFile({ id: 'b', fileName: 'b.svg', rawGroup: 'BETA', targetScopes: ['DELI'], derivedTargets }),
+    ]);
+    expect(items.map((item) => item.targetLabel)).toEqual(['ALPHA', 'BETA']);
+  });
+
   it('abre el lightbox con el SVG procesado correcto al hacer click', () => {
     const gallery = document.createElement('pw-results-gallery-template') as ResultsGalleryTemplate;
     document.body.append(gallery);
