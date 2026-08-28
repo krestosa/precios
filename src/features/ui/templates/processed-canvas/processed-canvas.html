@@ -1,0 +1,17 @@
+<section class="viewer" aria-label="Visor principal de imagen procesada">
+  <div class="viewer-viewport" tabindex="0" aria-label="Imagen procesada seleccionada; rueda para zoom y arrastre para desplazar">
+    <img class="viewer-image" alt="" draggable="false" hidden />
+  </div>
+
+  <div class="viewer-empty" role="status">
+    <strong>Sin output procesado</strong>
+    <span>Seleccioná o generá un output para verlo en el canvas.</span>
+  </div>
+
+  <div class="viewer-toolbar" aria-label="Controles del visor" hidden>
+    <button class="fit-button" type="button">Fit</button>
+    <button class="tool-button zoom-out" type="button" aria-label="Alejar">−</button>
+    <span class="zoom-level" aria-live="polite">100%</span>
+    <button class="tool-button zoom-in" type="button" aria-label="Acercar">+</button>
+  </div>
+</section>
