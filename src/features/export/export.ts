@@ -5,6 +5,7 @@ import type { PreflightIssue } from '../../domain/contracts/preflight';
 import { sha256Hex } from '../svg-engine/integrity';
 import { runZipTask } from '../../workers/zip-task';
 import { buildManifestArtifacts, buildManifestDocument } from './manifest';
+import { mergeFilePreflightIntoTrace, validateFilePreflightIdentity } from './preflight';
 import type {
   ExportBundleResult,
   ExportFileInput,
@@ -24,32 +25,33 @@ function exportIssue(code: string, message: string, input: ExportFileInput): Pre
 }
 
 function requestedStatus(input: ExportFileInput): FileExportStatus {
+  if (input.preflight?.blocking === true) return 'error';
+  if (input.trace.errors.some((issue) => issue.severity === 'ERROR')) return 'error';
   if (input.status !== undefined) return input.status;
   if (input.resultSvg === undefined) return 'error';
-  return input.trace.errors.some((issue) => issue.severity === 'ERROR') ? 'error' : 'exported';
+  return 'exported';
 }
 
 function traceWithHashes(
-  input: ExportFileInput,
+  baseTrace: FileTrace,
   job: ExportJobMetadata,
   sourceHash: string,
   resultHash: string | null,
   extraErrors: readonly PreflightIssue[],
 ): FileTrace {
-  const trace = input.trace;
   return {
     sourceSvg: {
-      ...trace.sourceSvg,
+      ...baseTrace.sourceSvg,
       hash: sourceHash,
     },
-    local: trace.local,
-    match: trace.match,
-    pricing: trace.pricing,
-    sources: trace.sources,
-    ...(trace.font === undefined ? {} : { font: trace.font }),
-    warnings: trace.warnings,
-    errors: [...trace.errors, ...extraErrors],
-    ...(trace.stableId === undefined ? {} : { stableId: trace.stableId }),
+    local: baseTrace.local,
+    match: baseTrace.match,
+    pricing: baseTrace.pricing,
+    sources: baseTrace.sources,
+    ...(baseTrace.font === undefined ? {} : { font: baseTrace.font }),
+    warnings: baseTrace.warnings,
+    errors: [...baseTrace.errors, ...extraErrors],
+    ...(baseTrace.stableId === undefined ? {} : { stableId: baseTrace.stableId }),
     ...(resultHash === null ? {} : { hash: resultHash }),
     timestamp: job.timestamp,
   };
@@ -102,22 +104,25 @@ export async function buildExportBundle(
   for (const input of inputs) {
     const sourceHash = await sha256Hex(input.sourceSvg);
     const resultHash = input.resultSvg === undefined ? null : await sha256Hex(input.resultSvg);
+    const identityIssues = validateFilePreflightIdentity(
+      input.fileId,
+      input.trace.sourceSvg.fileName,
+      input.preflight,
+    );
     let status = requestedStatus(input);
-    const extraErrors: PreflightIssue[] = [];
+    const extraErrors: PreflightIssue[] = [...identityIssues];
 
+    if (identityIssues.length > 0) status = 'error';
     if (status === 'exported' && input.resultSvg === undefined) {
       status = 'error';
       extraErrors.push(exportIssue('export.svg-result-missing', 'El archivo fue marcado para exportar pero no contiene SVG resultante.', input));
-    }
-    if (status === 'exported' && input.trace.errors.some((issue) => issue.severity === 'ERROR')) {
-      status = 'error';
-      extraErrors.push(exportIssue('export.preflight-blocked', 'El archivo contiene errores de preflight y no se exporta.', input));
     }
 
     const outputName = status === 'exported'
       ? input.outputName ?? input.trace.sourceSvg.fileName
       : null;
-    const trace = traceWithHashes(input, job, sourceHash, resultHash, extraErrors);
+    const preflightTrace = mergeFilePreflightIntoTrace(input.trace, input.preflight);
+    const trace = traceWithHashes(preflightTrace, job, sourceHash, resultHash, extraErrors);
     const diagnostics = [...trace.warnings, ...trace.errors];
     fileResults.push({
       fileId: input.fileId,

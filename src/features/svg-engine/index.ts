@@ -8,6 +8,8 @@ export {
   sha256Hex,
 } from './integrity';
 export { createBrowserTextMeasurer, measureOriginalPlaceholder, measurePriceUnit } from './measure';
+export { buildSvgFilePreflight } from './preflight';
+export type { SvgFilePreflightInput } from './preflight';
 export type {
   EngineSvgClass,
   PriceDisplayValues,

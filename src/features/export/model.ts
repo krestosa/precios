@@ -1,6 +1,7 @@
 import type { FileExportResult, ManifestArtifact } from '../../domain/contracts/batch';
 import type { JsonValue } from '../../domain/contracts/core';
 import type { FileTrace } from '../../domain/contracts/manifest';
+import type { FilePreflight } from '../../domain/contracts/preflight';
 
 export interface ExportJobMetadata {
   readonly timestamp: string;
@@ -14,6 +15,7 @@ export interface ExportFileInput {
   readonly resultSvg?: string;
   readonly outputName?: string;
   readonly trace: FileTrace;
+  readonly preflight?: FilePreflight;
   readonly status?: 'exported' | 'skipped' | 'error';
 }
 
