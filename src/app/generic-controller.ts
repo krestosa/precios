@@ -272,14 +272,12 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
 
   const assignDraftOutputs = (file: RuntimeFile, drafts: readonly RuntimePricingTargetDraft[]): void => {
     file.priceAlternatives = drafts.map((draft) => draft.pricing);
-    const hasHealthy = drafts.some((draft) => draft.complete);
-    const effective = !hasHealthy && drafts.length > 1 ? drafts.slice(0, 1) : drafts;
     const groupCounts = new Map<string, number>();
-    for (const draft of effective) {
+    for (const draft of drafts) {
       groupCounts.set(draft.pricingGroupCanonical, (groupCounts.get(draft.pricingGroupCanonical) ?? 0) + 1);
     }
-    const multiple = effective.length > 1;
-    file.outputs = effective.map((draft, index) => ({
+    const multiple = drafts.length > 1;
+    file.outputs = drafts.map((draft, index) => ({
       id: multiple ? `${file.id}::target:${index + 1}` : file.id,
       outputName: multiple
         ? outputName(file.fileName, draft, (groupCounts.get(draft.pricingGroupCanonical) ?? 0) > 1)
