@@ -77,7 +77,39 @@ jobs:
     environment:
       name: ${{ github.ref == 'refs/heads/main' && 'github-pages' || 'github-pages-preview' }}
       url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Deploy static site
         id: deployment
         uses: actions/deploy-pages@v5.0.0
+
+  smoke:
+    needs: deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout smoke runner
+        uses: actions/checkout@v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@v7.0.0
+        with:
+          node-version: '22.23.2'
+          package-manager-cache: false
+
+      - name: Probe deployed page and assets
+        env:
+          DEPLOYED_URL: ${{ needs.deploy.outputs.page_url }}
+        run: |
+          set -o pipefail
+          node scripts/portable-pipeline.mjs --smoke-url "${DEPLOYED_URL}" 2>&1 | tee deployment-smoke.log
+
+      - name: Upload deployment smoke artifact
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: deployment-smoke
+          path: deployment-smoke.log
+          if-no-files-found: error
