@@ -37,6 +37,19 @@ jobs:
           BUILD_TIMESTAMP: ${{ github.event.head_commit.timestamp || '' }}
         run: sh ./handoff-output/install-build.sh
 
+      - name: Run W27 focal regressions
+        run: |
+          cd handoff-output
+          ./node_modules/.bin/vitest run \
+            tests/runtime/deep-runtime-stabilization.e2e.test.ts \
+            tests/runtime/font-resolver-dispose-race.test.ts \
+            tests/runtime/post-center-canvas-stabilization.e2e.test.ts \
+            tests/runtime/generic-artwork-scopes.e2e.test.ts \
+            tests/runtime/generic-all-incomplete-targets.e2e.test.ts \
+            tests/runtime/workbook-multisheet.ui-runtime.test.ts \
+            tests/runtime/results-gallery-ui.test.ts \
+            tests/runtime/product-hardcode-audit.test.ts
+
       - name: Upload exact dist artifact
         uses: actions/upload-artifact@v7.0.1
         with:
