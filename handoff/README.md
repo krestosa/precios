@@ -16,7 +16,9 @@ Linux:
 sh ./install-build.sh
 ```
 
-Ambos launchers ejecutan el mismo pipeline Node. El pipeline informa las versiones de Node y npm, usa `npm ci` cuando hay un lock válido y `npm install` cuando no lo hay, ejecuta typecheck, tests y build, verifica `dist` y genera evidencia en `qa/`.
+Ambos launchers ejecutan el mismo pipeline Node. El paquete incluye la suite `tests/` del árbol de entrada sin modificarla. El ensamblado falla si esa suite no existe y el pipeline falla si no encuentra archivos `*.test.ts` o `*.spec.ts`.
+
+El pipeline informa las versiones de Node y npm, usa `npm ci` cuando hay un lock válido y `npm install` cuando no lo hay, ejecuta typecheck, tests y build, verifica `dist` y genera evidencia en `qa/`.
 
 ## Ejecutar la aplicación compilada
 

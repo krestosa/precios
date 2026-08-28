@@ -10,6 +10,7 @@ const rootDir = path.resolve(scriptDir, '..');
 const qaDir = path.join(rootDir, 'qa');
 const logsDir = path.join(qaDir, 'logs');
 const distDir = path.join(rootDir, 'dist');
+const testsDir = path.join(rootDir, 'tests');
 const lockPath = path.join(rootDir, 'package-lock.json');
 const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
@@ -105,6 +106,21 @@ async function sha256(filePath) {
   return hash.digest('hex');
 }
 
+async function ensureTests() {
+  const stat = await fs.stat(testsDir).catch(() => null);
+  if (!stat?.isDirectory()) {
+    throw new Error('Falta la suite tests requerida para ejecutar QA.');
+  }
+
+  const files = await listFiles(testsDir);
+  const testFiles = files.filter((filePath) => /\.(test|spec)\.ts$/u.test(filePath));
+  if (testFiles.length === 0) {
+    throw new Error('La suite tests no contiene archivos de prueba detectables.');
+  }
+
+  return testFiles;
+}
+
 async function ensureDist() {
   const stat = await fs.stat(distDir).catch(() => null);
   if (!stat?.isDirectory()) {
@@ -119,7 +135,7 @@ async function ensureDist() {
   return files;
 }
 
-async function collectHashTargets(distFiles) {
+async function collectHashTargets(distFiles, testFiles) {
   const fixed = [
     'package.json',
     'package-lock.json',
@@ -148,7 +164,7 @@ async function collectHashTargets(distFiles) {
   }
 
   const sourceFiles = await listFiles(path.join(rootDir, 'src'));
-  return [...distFiles, ...sourceFiles, ...existing].sort((a, b) => path.relative(rootDir, a).localeCompare(path.relative(rootDir, b), 'en'));
+  return [...distFiles, ...sourceFiles, ...testFiles, ...existing].sort((a, b) => path.relative(rootDir, a).localeCompare(path.relative(rootDir, b), 'en'));
 }
 
 async function main() {
@@ -158,6 +174,9 @@ async function main() {
   const npmVersion = await runCommand('npm-version', npmCommand, ['--version']);
   versions.push(`npm ${npmVersion.output.trim()}`);
   await fs.writeFile(path.join(logsDir, 'versions.log'), `${versions.join('\n')}\n`, 'utf8');
+
+  const testFiles = await ensureTests();
+  console.log(`Suite QA detectada: ${testFiles.length} archivo(s).`);
 
   const initialLock = await readLockInfo();
   const installMethod = initialLock.valid ? 'ci' : 'install';
@@ -181,7 +200,7 @@ async function main() {
   const dependencyTree = await runCommand('dependency-tree', npmCommand, ['ls', '--all', '--json'], { allowFailure: true });
   await fs.writeFile(path.join(qaDir, 'dependency-tree.json'), dependencyTree.stdout || '{}\n', 'utf8');
 
-  const hashTargets = await collectHashTargets(distFiles);
+  const hashTargets = await collectHashTargets(distFiles, testFiles);
   const sums = [];
   for (const filePath of hashTargets) {
     const relativePath = path.relative(rootDir, filePath).split(path.sep).join('/');
@@ -211,6 +230,9 @@ async function main() {
       tests: 'passed',
       build: 'passed',
       dependencyTreeExitCode: dependencyTree.exitCode,
+    },
+    tests: {
+      fileCount: testFiles.length,
     },
     dist: {
       fileCount: distFiles.length,

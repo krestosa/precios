@@ -49,12 +49,23 @@ async function requireFile(relativePath) {
   return fullPath;
 }
 
+async function requireDirectory(relativePath) {
+  const fullPath = path.join(rootDir, relativePath);
+  const stat = await fs.stat(fullPath).catch(() => null);
+  if (!stat?.isDirectory()) {
+    throw new Error(`Falta un directorio requerido: ${relativePath}`);
+  }
+  return fullPath;
+}
+
 async function main() {
   const outputDir = readOutputArgument();
   const relativeOutput = path.relative(rootDir, outputDir);
   if (!relativeOutput || relativeOutput.startsWith('..') || path.isAbsolute(relativeOutput)) {
     throw new Error('La salida debe estar dentro del working tree actual.');
   }
+
+  const testsSource = await requireDirectory('tests');
 
   await fs.rm(outputDir, { recursive: true, force: true });
   await fs.mkdir(outputDir, { recursive: true });
@@ -81,6 +92,7 @@ async function main() {
   }
 
   await copyDirectory(path.join(rootDir, 'src'), path.join(outputDir, 'src'));
+  await copyDirectory(testsSource, path.join(outputDir, 'tests'));
 
   const portableScripts = ['portable-pipeline.mjs', 'serve-dist.mjs'];
   for (const fileName of portableScripts) {
