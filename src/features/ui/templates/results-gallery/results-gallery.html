@@ -1,0 +1,59 @@
+<section class="gallery-section" aria-labelledby="results-gallery-heading">
+  <header class="gallery-header">
+    <div>
+      <p class="eyebrow">Salida procesada</p>
+      <h2 id="results-gallery-heading">Resultados</h2>
+      <p class="summary">SVG finales del runtime. Los bloqueados siguen visibles para revisión, pero nunca se ofrecen como exportables.</p>
+    </div>
+    <span class="count" aria-live="polite">0 outputs</span>
+  </header>
+
+  <div class="empty" role="status">
+    <strong>Todavía no hay outputs</strong>
+    <span>Cuando el runtime derive resultados, aparecerán acá sin reconstrucciones ni previews paralelos.</span>
+  </div>
+  <div class="grid" aria-live="polite"></div>
+
+  <template class="item-template">
+    <article class="gallery-card">
+      <div class="preview-frame">
+        <button class="preview-button" type="button">
+          <img class="thumbnail" alt="" draggable="false" />
+        </button>
+        <div class="placeholder" hidden>
+          <span class="placeholder-mark" aria-hidden="true"></span>
+          <span class="placeholder-text"></span>
+        </div>
+        <span class="state-badge"></span>
+      </div>
+      <footer class="card-footer">
+        <div class="card-meta">
+          <strong class="file-name"></strong>
+          <span class="target"></span>
+        </div>
+        <button class="export-button" type="button">Exportar</button>
+      </footer>
+    </article>
+  </template>
+
+  <div class="lightbox" hidden role="dialog" aria-modal="true" aria-labelledby="lightbox-title">
+    <div class="lightbox-panel">
+      <header class="lightbox-toolbar">
+        <div class="lightbox-heading">
+          <strong id="lightbox-title" class="lightbox-title"></strong>
+          <span class="lightbox-target"></span>
+        </div>
+        <div class="lightbox-controls" aria-label="Controles de zoom">
+          <button class="tool-button zoom-out" type="button" aria-label="Alejar">−</button>
+          <span class="zoom-level" aria-live="polite">100%</span>
+          <button class="tool-button zoom-in" type="button" aria-label="Acercar">+</button>
+          <button class="fit-button" type="button">Ajustar</button>
+          <button class="tool-button close" type="button" aria-label="Cerrar visor">×</button>
+        </div>
+      </header>
+      <div class="lightbox-viewport" tabindex="0" aria-label="Visor ampliable; rueda para zoom y arrastre para desplazar">
+        <img class="lightbox-image" alt="" draggable="false" />
+      </div>
+    </div>
+  </div>
+</section>

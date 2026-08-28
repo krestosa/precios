@@ -12,9 +12,11 @@ import type { FontsTemplate } from '../fonts';
 import type { ReviewTemplate } from '../review';
 import type { PreflightTemplate } from '../preflight';
 import type { ExportTemplate } from '../export';
-import '../source-queue'; import '../fonts'; import '../review'; import '../preflight'; import '../export';
+import type { ResultsGalleryTemplate } from '../results-gallery';
+import '../source-queue'; import '../fonts'; import '../review'; import '../preflight'; import '../export'; import '../results-gallery';
 
 export interface WorkbenchShellView { readonly model: WorkbenchViewModel; readonly uiState: WorkbenchUiState; }
+type WorkspaceDestination = 'source' | 'results' | 'review' | 'validation' | 'export';
 
 function queueSecondary(file: WorkbenchFileView): string {
   if (file.processingState === 'queued' || file.processingState === 'processing') {
@@ -40,21 +42,55 @@ export class WorkbenchShellTemplate extends HTMLElement {
   private readonly progress: ProgressBar;
   private readonly sourceQueue: SourceQueueTemplate;
   private readonly fonts: FontsTemplate;
+  private readonly gallery: ResultsGalleryTemplate;
   private readonly review: ReviewTemplate;
   private readonly preflight: PreflightTemplate;
   private readonly exportPanel: ExportTemplate;
+  private readonly railButtons: readonly HTMLButtonElement[];
   private viewValue: WorkbenchShellView | undefined;
+  private activeDestination: WorkspaceDestination = 'source';
+  private hadFiles = false;
 
   constructor() {
     super();
     const root = mountStaticShadow(this, markup, styles);
-    this.progress = requiredElement(root, '.progress'); this.sourceQueue = requiredElement(root, 'pw-source-queue-template'); this.fonts = requiredElement(root, 'pw-fonts-template');
-    this.review = requiredElement(root, 'pw-review-template'); this.preflight = requiredElement(root, 'pw-preflight-template'); this.exportPanel = requiredElement(root, 'pw-export-template');
+    this.progress = requiredElement(root, '.progress');
+    this.sourceQueue = requiredElement(root, 'pw-source-queue-template');
+    this.fonts = requiredElement(root, 'pw-fonts-template');
+    this.gallery = requiredElement(root, 'pw-results-gallery-template');
+    this.review = requiredElement(root, 'pw-review-template');
+    this.preflight = requiredElement(root, 'pw-preflight-template');
+    this.exportPanel = requiredElement(root, 'pw-export-template');
+    this.railButtons = [...root.querySelectorAll<HTMLButtonElement>('.rail-destination')];
+    this.railButtons.forEach((button) => button.addEventListener('click', () => {
+      const destination = button.dataset.destination;
+      if (this.isDestination(destination)) this.navigate(destination);
+    }));
   }
 
   set view(value: WorkbenchShellView | undefined) { this.viewValue = value; this.sync(); }
   get view(): WorkbenchShellView | undefined { return this.viewValue; }
   connectedCallback(): void { upgradeProperty(this, 'view'); this.sync(); }
+
+  private isDestination(value: string | undefined): value is WorkspaceDestination {
+    return value === 'source' || value === 'results' || value === 'review' || value === 'validation' || value === 'export';
+  }
+
+  private navigate(destination: WorkspaceDestination): void {
+    this.setActiveDestination(destination);
+    const target = this.shadowRoot?.querySelector<HTMLElement>(`#${destination}-section`);
+    if (target && 'scrollIntoView' in target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  private setActiveDestination(destination: WorkspaceDestination): void {
+    this.activeDestination = destination;
+    this.railButtons.forEach((button) => {
+      const selected = button.dataset.destination === destination;
+      button.classList.toggle('selected', selected);
+      if (selected) button.setAttribute('aria-current', 'page');
+      else button.removeAttribute('aria-current');
+    });
+  }
 
   private sync(): void {
     const view = this.viewValue; if (!view) return;
@@ -69,10 +105,15 @@ export class WorkbenchShellTemplate extends HTMLElement {
     }));
     this.sourceQueue.view = { source: model.source, svgLoadStatus: model.svgLoadStatus, items };
     this.fonts.fonts = model.fonts; this.fonts.loadStatus = model.fontLoadStatus;
+    this.gallery.files = model.files;
     this.review.file = selected; this.review.uiState = uiState; this.review.layoutIssues = selected ? derivedLayoutIssues(selected) : [];
     this.preflight.preflight = model.preflight; this.exportPanel.files = model.files;
     this.progress.hidden = !model.progress;
     if (model.progress) { this.progress.value = model.progress.value; this.progress.max = model.progress.max; this.progress.label = model.progress.label; }
+
+    const hasFiles = model.files.length > 0;
+    if (!this.hadFiles && hasFiles && this.activeDestination === 'source') this.setActiveDestination('results');
+    this.hadFiles = hasFiles;
   }
 }
 
