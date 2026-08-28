@@ -70,18 +70,23 @@ describe('M3 Expressive dashboard navigation rail', () => {
     expect(declarationBlock('.rail-destination:active .rail-indicator::after')).toContain('opacity: 0.10');
   });
 
-  it('mantiene rail y dashboard como siblings inmediatos y Resultados como panel principal full-width', () => {
+  it('mantiene rail y dashboard como siblings y reserva el main visual al canvas con inspector lateral', () => {
     const app = parsedShell();
     const children = [...app.children] as HTMLElement[];
     expect(children).toHaveLength(2);
     expect(children[0]?.classList.contains('rail')).toBe(true);
     expect(children[1]?.classList.contains('dashboard')).toBe(true);
     const dashboard = children[1]!;
-    const results = dashboard.querySelector<HTMLElement>('#results-section')!;
-    expect(results.parentElement).toBe(dashboard);
+    const layout = dashboard.querySelector<HTMLElement>('.dashboard-layout')!;
+    const results = layout.querySelector<HTMLElement>('#results-section')!;
+    const inspector = layout.querySelector<HTMLElement>('#dashboard-inspector')!;
+    expect(results.parentElement).toBe(layout);
     expect(results.classList.contains('dashboard-primary')).toBe(true);
-    expect(results.nextElementSibling?.tagName).toBe('PW-WORKBENCH-LAYOUT');
-    expect(declarationBlock('.results-section')).toContain('width: 100%');
+    expect(results.querySelector('pw-processed-canvas-template')).not.toBeNull();
+    expect(results.querySelector('pw-results-gallery-template')).toBeNull();
+    expect(inspector.querySelector('pw-results-gallery-template[compact]')).not.toBeNull();
+    expect(declarationBlock('.dashboard-layout')).toContain('grid-template-columns: minmax(0, 1fr) minmax(320px, 380px)');
+    expect(declarationBlock('.inspector')).toContain('overflow-y: auto');
   });
 
   it('expone exactamente cinco destinos verticales con Carga activa inicialmente', () => {
