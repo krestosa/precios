@@ -1,10 +1,12 @@
 <pw-empty-state class="no-file" heading="Sin SVG seleccionados" message="Cargá archivos para habilitar matching, precios, preflight y preview."></pw-empty-state>
 <div class="review" hidden>
-  <pw-panel heading="Archivo seleccionado" description="Revisión desacoplada de parsing, matching, pricing y generación.">
+  <pw-panel heading="Archivo seleccionado" description="Identidad del source separada de los targets derivados de pricing.">
     <div class="stack">
       <div class="row-between"><div class="filename"></div><div class="row"><pw-status-chip class="preflight"></pw-status-chip><pw-button class="details">Ver trazabilidad</pw-button></div></div>
       <div class="summary-grid">
-        <div class="metric"><span>Local detectado</span><strong data-summary="local"></strong></div>
+        <div class="metric"><span>Ámbito de gráfica</span><strong data-summary="source-scope"></strong></div>
+        <div class="metric"><span>Local del source</span><strong data-summary="source-local"></strong></div>
+        <div class="metric"><span>Target de salida</span><strong data-summary="output-target"></strong></div>
         <div class="metric"><span>Matching</span><strong data-summary="matching"></strong></div>
         <div class="metric"><span>Placeholder / precio</span><strong data-summary="classification"></strong></div>
       </div>
@@ -25,7 +27,12 @@
     </div>
   </pw-panel>
 
-  <pw-panel heading="Precios" description="NORMAL y ÉMINENT permanecen independientes; ausencia significa desconocido.">
+  <pw-panel heading="Targets derivados" description="Cada target proviene de pricingGroups/scopes reales de la matriz; un target roto no bloquea los demás.">
+    <pw-empty-state class="targets-empty" heading="Sin targets derivados" message="Todavía no hay targets de pricing aplicables para este source."></pw-empty-state>
+    <ul class="derived-target-list" aria-label="Targets derivados"></ul>
+  </pw-panel>
+
+  <pw-panel heading="Precios del output seleccionado" description="NORMAL y ÉMINENT pertenecen al target de salida actual; ausencia significa desconocido.">
     <div class="stack">
       <div class="price-grid">
         <article class="price-card" aria-label="Precio NORMAL"><h3>NORMAL</h3><p class="price-value normal-value"></p><div class="provenance normal-provenance"></div></article>
@@ -41,7 +48,7 @@
     <template class="issue-template"><li class="issue"><div><strong></strong><span></span></div><pw-button></pw-button></li></template>
   </pw-panel>
 
-  <pw-panel heading="Preview" description="La UI recibe contenido ya procesado y no modifica el SVG.">
+  <pw-panel heading="Preview" description="RESULT y OVERLAY usan el SVG procesado del output seleccionado.">
     <div class="preview-toolbar">
       <pw-segmented-tabs class="preview-tabs"></pw-segmented-tabs>
       <div class="preview-controls" aria-label="Controles de viewport"><pw-status-chip tone="neutral" label="Pan preparado"></pw-status-chip><pw-button data-command="fit">Fit</pw-button><pw-button data-command="zoom-out" aria-label="Alejar preview">−</pw-button><span class="zoom" aria-live="polite"></span><pw-button data-command="zoom-in" aria-label="Acercar preview">+</pw-button><pw-button data-command="reset">Reset</pw-button></div>
