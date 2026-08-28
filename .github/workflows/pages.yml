@@ -5,7 +5,6 @@ on:
     branches:
       - main
       - integration/preview-runtime
-      - qa/w22-public-screenshot
   workflow_dispatch:
 
 concurrency:
@@ -68,24 +67,7 @@ jobs:
         with:
           path: handoff-output/dist
 
-  visual:
-    if: ${{ github.ref == 'refs/heads/qa/w22-public-screenshot' }}
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Capture public Pages desktop screenshot
-        run: |
-          google-chrome --headless=new --disable-gpu --no-sandbox --hide-scrollbars --window-size=1440,1000 --screenshot=w22-public-desktop.png https://krestosa.github.io/precios/
-          test -s w22-public-desktop.png
-      - name: Upload public screenshot
-        uses: actions/upload-artifact@v7.0.1
-        with:
-          name: w22-public-desktop-screenshot
-          path: w22-public-desktop.png
-          if-no-files-found: error
-
   deploy:
-    if: ${{ github.ref != 'refs/heads/qa/w22-public-screenshot' }}
     needs: build
     runs-on: ubuntu-latest
     permissions:
