@@ -1,0 +1,8 @@
+import { css } from 'lit';
+
+export const emptyStateStyles = css`
+  :host { display: block; }
+  .empty { padding: var(--pw-space-6); border: var(--pw-border-width) dashed var(--pw-color-border); border-radius: var(--pw-radius-md); text-align: center; color: var(--pw-color-text-muted); background: var(--pw-color-canvas); }
+  strong { display: block; color: var(--pw-color-text); margin-bottom: var(--pw-space-1); }
+  p { margin: 0; font-size: var(--pw-font-size-sm); line-height: var(--pw-line-height-normal); }
+`;

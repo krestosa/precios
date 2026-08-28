@@ -1,0 +1,17 @@
+import { css } from 'lit';
+
+export const fileDropzoneStyles = css`
+  :host { display: block; }
+  .zone { display: grid; place-items: center; gap: var(--pw-space-1); min-height: 7rem; border: var(--pw-border-width-emphasis) dashed var(--pw-color-border); border-radius: var(--pw-radius-md); padding: var(--pw-space-4); text-align: center; background: var(--pw-color-canvas); transition: border-color var(--pw-motion-fast) var(--pw-motion-ease), background var(--pw-motion-fast) var(--pw-motion-ease); }
+  .zone[data-drag='true'] { border-color: var(--pw-color-accent); background: var(--pw-color-info-surface); }
+  .zone:focus-within { outline: var(--pw-focus-width) solid var(--pw-color-focus); outline-offset: var(--pw-border-width-emphasis); }
+  strong { font-size: var(--pw-font-size-md); }
+  small { color: var(--pw-color-text-muted); }
+  input { position: absolute; inline-size: 1px; block-size: 1px; opacity: 0; pointer-events: none; }
+  label { display: inline-flex; margin-top: var(--pw-space-1); border-radius: var(--pw-radius-sm); padding: var(--pw-space-2) var(--pw-space-3); color: var(--pw-color-accent); background: var(--pw-color-surface); border: var(--pw-border-width) solid var(--pw-color-border); font-weight: var(--pw-font-weight-strong); cursor: pointer; }
+  :host([disabled]) label { cursor: not-allowed; opacity: 0.55; }
+  .state { font-size: var(--pw-font-size-sm); font-weight: var(--pw-font-weight-strong); }
+  :host([status='error']) .state { color: var(--pw-color-danger); }
+  :host([status='ready']) .state { color: var(--pw-color-success); }
+  @media (prefers-reduced-motion: reduce) { .zone { transition: none; } }
+`;
