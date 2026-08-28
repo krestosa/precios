@@ -29,6 +29,28 @@ function deferredTextFile(content: string, name: string): { readonly file: File;
   };
 }
 
+function deferredBinaryFile(name: string, type: string): { readonly file: File; release(): void } {
+  const file = new File([new Uint8Array([0, 1, 2, 3])], name, { type });
+  let resolveBytes: ((value: ArrayBuffer) => void) | undefined;
+  Object.defineProperty(file, 'arrayBuffer', {
+    configurable: true,
+    value: () => new Promise<ArrayBuffer>((resolve) => { resolveBytes = resolve; }),
+  });
+  return {
+    file,
+    release: () => {
+      if (!resolveBytes) throw new Error('La lectura diferida de la fuente todavía no comenzó.');
+      resolveBytes(new Uint8Array([0, 1, 2, 3]).buffer);
+    },
+  };
+}
+
+function workbookFile(): File {
+  return new File([createGrowingWorkbookBytes()], 'precios-crecientes.xlsx', {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+}
+
 function uint32(value: number): Uint8Array {
   return new Uint8Array([
     (value >>> 24) & 0xff,
@@ -99,10 +121,7 @@ describe('W27 deep runtime stabilization', () => {
   });
 
   it('cancela limpiamente un svg.load pendiente cuando source.selectSheet lo supersede', async () => {
-    const workbook = new File([createGrowingWorkbookBytes()], 'precios-crecientes.xlsx', {
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    });
-    dispatchWorkbenchEvent(workbench, 'pw:price-source-files', { files: [workbook] });
+    dispatchWorkbenchEvent(workbench, 'pw:price-source-files', { files: [workbookFile()] });
     await controller.waitFor('source.load');
     expect(workbench.model.source.sheets?.some((sheet) => sheet.name === '01092026')).toBe(true);
 
@@ -124,6 +143,23 @@ describe('W27 deep runtime stabilization', () => {
     await controller.waitFor('svg.load');
     expect(workbench.model.svgLoadStatus).not.toBe('loading');
     expect(workbench.model.files.map((file) => file.fileName)).not.toContain('pendiente.svg');
+  });
+
+  it('elimina una fuente pendiente si source.load supersede font.load', async () => {
+    const pendingFont = deferredBinaryFile('pendiente.woff2', 'font/woff2');
+    dispatchWorkbenchEvent(workbench, 'pw:font-files', { files: [pendingFont.file] });
+    expect(workbench.model.fontLoadStatus).toBe('loading');
+    expect(workbench.model.fonts.some((font) => font.processingState === 'processing')).toBe(true);
+
+    dispatchWorkbenchEvent(workbench, 'pw:price-source-files', { files: [workbookFile()] });
+    await controller.waitFor('source.load');
+
+    expect(workbench.model.fontLoadStatus).not.toBe('loading');
+    expect(workbench.model.fonts.some((font) => font.processingState === 'processing')).toBe(false);
+
+    pendingFont.release();
+    await controller.waitFor('font.load');
+    expect(workbench.model.fonts.some((font) => font.processingState === 'processing')).toBe(false);
   });
 
   it('exporta en ZIP dos SVG distintos con el mismo basename sin colisionar nombres de PNG', async () => {
