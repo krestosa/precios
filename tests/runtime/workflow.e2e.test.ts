@@ -189,8 +189,27 @@ describe('workflow productivo por Control API', () => {
       (state) => typeof getPath(state, 'view', 'zoom') === 'number'
         && Number(getPath(state, 'view', 'zoom')) > Number(beforeZoom),
     );
-    expect(Number(getPath(zoomed, 'view', 'zoom'))).toBeGreaterThan(Number(beforeZoom));
+    const zoomedValue = Number(getPath(zoomed, 'view', 'zoom'));
+    expect(zoomedValue).toBeGreaterThan(Number(beforeZoom));
 
+    const zoomedOut = await executeAndWaitForState(
+      api,
+      'preview.zoomOut',
+      undefined,
+      (state) => Number(getPath(state, 'view', 'zoom')) < zoomedValue,
+    );
+    expect(Number(getPath(zoomedOut, 'view', 'zoom'))).toBeLessThan(zoomedValue);
+
+    await executeAndWaitForState(api, 'preview.zoomIn', undefined, (state) => Number(getPath(state, 'view', 'zoom')) > 1);
+    const resetZoom = await executeAndWaitForState(
+      api,
+      'preview.reset',
+      undefined,
+      (state) => getPath(state, 'view', 'zoom') === 1,
+    );
+    expect(getPath(resetZoom, 'view', 'zoom')).toBe(1);
+
+    await executeAndWaitForState(api, 'preview.zoomIn', undefined, (state) => Number(getPath(state, 'view', 'zoom')) > 1);
     const fit = await executeAndWaitForState(
       api,
       'preview.fit',
