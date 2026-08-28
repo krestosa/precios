@@ -1,0 +1,81 @@
+name: Build and publish static site
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: static-site-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@v7.0.0
+        with:
+          node-version: '22.23.2'
+
+      - name: Assemble portable handoff
+        run: node scripts/assemble-handoff.mjs --output handoff-output
+
+      - name: Run common portable pipeline
+        env:
+          BUILD_INPUT_SHA: ${{ github.sha }}
+          BUILD_RUN_ID: ${{ github.run_id }}
+          BUILD_TIMESTAMP: ${{ github.event.head_commit.timestamp || '' }}
+        run: sh ./handoff-output/install-build.sh
+
+      - name: Upload exact dist artifact
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: dist
+          path: handoff-output/dist
+          if-no-files-found: error
+          include-hidden-files: true
+
+      - name: Upload portable handoff artifact
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: handoff-os-agnostic
+          path: handoff-output
+          if-no-files-found: error
+          include-hidden-files: true
+
+      - name: Upload QA artifact
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: metadata-qa
+          path: |
+            handoff-output/qa
+            handoff-output/package-lock.json
+          if-no-files-found: error
+          include-hidden-files: true
+
+      - name: Upload static hosting artifact
+        uses: actions/upload-pages-artifact@v5.0.0
+        with:
+          path: handoff-output/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy static site
+        id: deployment
+        uses: actions/deploy-pages@v5.0.0
