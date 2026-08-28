@@ -281,7 +281,7 @@ function parseWorkbookSheet(
     };
   }
 
-  let range: XLSX.Range;
+  let range: ReturnType<typeof XLSX.utils.decode_range>;
   try {
     range = XLSX.utils.decode_range(reference);
   } catch {
