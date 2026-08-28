@@ -40,6 +40,25 @@ function pngOutputName(input: ExportFileInput): string {
   return /\.svg$/iu.test(requested) ? requested.replace(/\.svg$/iu, '.png') : `${requested}.png`;
 }
 
+function canonicalArtifactName(name: string): string {
+  return name.normalize('NFC').toLocaleLowerCase('en-US');
+}
+
+function uniqueArtifactName(requested: string, used: Set<string>): string {
+  const extensionIndex = requested.lastIndexOf('.');
+  const stem = extensionIndex > 0 ? requested.slice(0, extensionIndex) : requested;
+  const extension = extensionIndex > 0 ? requested.slice(extensionIndex) : '';
+  let candidate = requested;
+  let suffix = 2;
+
+  while (used.has(canonicalArtifactName(candidate))) {
+    candidate = `${stem} (${suffix})${extension}`;
+    suffix += 1;
+  }
+  used.add(canonicalArtifactName(candidate));
+  return candidate;
+}
+
 function traceWithHashes(
   baseTrace: FileTrace,
   job: ExportJobMetadata,
@@ -111,6 +130,7 @@ export async function buildExportBundle(
   const svgArtifacts: SvgExportArtifact[] = [];
   const pngArtifacts: PngExportArtifact[] = [];
   const manifestFiles: ExportManifestFile[] = [];
+  const allocatedPngNames = new Set<string>();
 
   for (const input of inputs) {
     const sourceHash = await sha256Hex(input.sourceSvg);
@@ -145,7 +165,7 @@ export async function buildExportBundle(
           throw new Error('El rasterizador no devolvió un PNG válido con MIME y dimensiones coherentes.');
         }
         pngArtifact = {
-          fileName: pngOutputName(input),
+          fileName: uniqueArtifactName(pngOutputName(input), allocatedPngNames),
           bytes: rasterized.bytes,
           mimeType: rasterized.mimeType,
           width: rasterized.width,
