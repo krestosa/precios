@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WorkbenchFileView } from '../../src/features/ui/models';
 import { ProcessedCanvasTemplate } from '../../src/features/ui/templates/processed-canvas/processed-canvas';
 import { ResultsGalleryTemplate } from '../../src/features/ui/templates/results-gallery/results-gallery';
@@ -139,5 +139,16 @@ describe('W23 dashboard center canvas', () => {
     window.dispatchEvent(new Event('resize'));
     const constrained = panFromDrag(zoomed, 0, 0, 200, 600);
     expect(image.style.transform).toBe(transformStyle(constrained));
+  });
+
+  it('tolera teardown cuando window ya no está disponible', () => {
+    const canvas = document.createElement('pw-processed-canvas-template') as ProcessedCanvasTemplate;
+    document.body.append(canvas);
+    vi.stubGlobal('window', undefined);
+    try {
+      expect(() => canvas.disconnectedCallback()).not.toThrow();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
