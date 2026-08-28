@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it } from 'vitest';
-import globalStyles from '../../src/global.css?raw';
-import shellMarkup from '../../src/features/ui/templates/workbench-shell/workbench-shell.html?raw';
-import shellStyles from '../../src/features/ui/templates/workbench-shell/workbench-shell.css?raw';
 import { WorkbenchShellTemplate } from '../../src/features/ui/templates/workbench-shell/workbench-shell';
+
+const globalStyles = readFileSync(new URL('../../src/global.css', import.meta.url), 'utf8');
+const shellMarkup = readFileSync(new URL('../../src/features/ui/templates/workbench-shell/workbench-shell.html', import.meta.url), 'utf8');
+const shellStyles = readFileSync(new URL('../../src/features/ui/templates/workbench-shell/workbench-shell.css', import.meta.url), 'utf8');
 
 function declarationBlock(selector: string): string {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
