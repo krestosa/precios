@@ -66,6 +66,7 @@ async function main() {
     Event: window.Event,
     CustomEvent: window.CustomEvent,
     MouseEvent: window.MouseEvent,
+    MutationObserver: window.MutationObserver,
     File: NodeFile,
   };
 
