@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - integration/preview-runtime
+      - fix/pricing-render-export-e2e
   workflow_dispatch:
 
 concurrency:
@@ -68,6 +69,7 @@ jobs:
           path: handoff-output/dist
 
   deploy:
+    if: ${{ github.ref != 'refs/heads/fix/pricing-render-export-e2e' }}
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -85,6 +87,7 @@ jobs:
         uses: actions/deploy-pages@v5.0.0
 
   smoke:
+    if: ${{ github.ref != 'refs/heads/fix/pricing-render-export-e2e' }}
     needs: deploy
     runs-on: ubuntu-latest
     permissions:
