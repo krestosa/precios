@@ -59,9 +59,11 @@ export class TraceTemplate extends HTMLElement {
     if (!file || !trace) return;
     this.setField('svg', trace.sourceSvg.fileName);
     this.setField('source', file.sourceFileName ?? 'No informada');
-    this.setField('local-raw', trace.local.raw ?? 'No informado');
-    this.setField('local-canonical', trace.local.canonical ?? 'No informado');
+    this.setField('source-scope', file.sourceScope === 'generic' ? 'General / genérica' : file.sourceScope === 'local-specific' ? 'Local específica' : 'No informado');
+    this.setField('source-local', file.sourceScope === 'generic' ? 'No aplica' : trace.local.raw ?? file.sourceLocal ?? 'No informado');
+    this.setField('local-canonical', file.sourceScope === 'generic' ? 'No aplica' : trace.local.canonical ?? 'No informado');
     this.setField('group', file.rawGroup ?? 'No informado');
+    this.setField('output-scopes', file.targetScopes?.length ? file.targetScopes.join(' / ') : 'No informado');
     this.setField('channel', file.channel ?? 'No informado');
     this.setField('method', trace.match.method ? matchMethodLabel(trace.match.method) : 'No informado');
     this.setField('confidence', trace.match.confidence !== undefined ? confidenceLabel(trace.match.confidence) : 'No informada');
