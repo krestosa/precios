@@ -1,5 +1,5 @@
-:host { display: grid; gap: var(--pw-space-3); }
-.stack { display: grid; gap: var(--pw-space-3); }
-.source-file { font-size: var(--pw-font-size-sm); line-height: var(--pw-line-height-normal); }
-.message { color: var(--pw-color-text-muted); margin-top: var(--pw-space-1); }
+:host { display: grid; gap: var(--pw-component-source-queue-gap); }
+.stack { display: grid; gap: var(--pw-component-source-queue-gap); }
+.source-file { font: var(--pw-component-source-queue-type); letter-spacing: var(--pw-foundation-type-tracking-p040); }
+.message { color: var(--pw-semantic-color-scheme-on-surface-variant); margin-top: var(--pw-semantic-space-xs); }
 [hidden] { display: none !important; }
