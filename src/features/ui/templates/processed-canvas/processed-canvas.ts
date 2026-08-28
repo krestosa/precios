@@ -77,10 +77,10 @@ export class ProcessedCanvasTemplate extends HTMLElement {
   disconnectedCallback(): void {
     this.resizeObserver?.disconnect();
     this.resizeObserver = undefined;
-    if (this.resizeFallbackAttached) {
+    if (this.resizeFallbackAttached && typeof window !== 'undefined') {
       window.removeEventListener('resize', this.onViewportResize);
-      this.resizeFallbackAttached = false;
     }
+    this.resizeFallbackAttached = false;
   }
 
   private sync(): void {
@@ -118,7 +118,7 @@ export class ProcessedCanvasTemplate extends HTMLElement {
       this.resizeObserver.observe(this.viewport);
       return;
     }
-    if (this.resizeFallbackAttached) return;
+    if (this.resizeFallbackAttached || typeof window === 'undefined') return;
     window.addEventListener('resize', this.onViewportResize);
     this.resizeFallbackAttached = true;
   }
