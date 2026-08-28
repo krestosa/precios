@@ -1,21 +1,33 @@
-import { LitElement } from 'lit';
-import { uiPanelStyles } from './ui-panel.styles';
-import { uiPanelTemplate } from './ui-panel.template';
+import markup from './ui-panel.html?raw';
+import styles from './ui-panel.css?raw';
+import { mountStaticShadow, requiredElement } from '../../shadow';
 
-export class UiPanel extends LitElement {
-  static override properties = {
-    heading: { type: String },
-    description: { type: String },
-  };
+export class UiPanel extends HTMLElement {
+  static get observedAttributes(): string[] { return ['heading', 'description']; }
 
-  static override styles = uiPanelStyles;
+  private readonly headingNode: HTMLElement;
+  private readonly descriptionNode: HTMLParagraphElement;
 
-  heading = '';
-  description = '';
+  constructor() {
+    super();
+    const root = mountStaticShadow(this, markup, styles);
+    this.headingNode = requiredElement(root, 'h2');
+    this.descriptionNode = requiredElement(root, 'p');
+  }
 
-  override render() {
-    return uiPanelTemplate(this.heading, this.description);
+  get heading(): string { return this.getAttribute('heading') ?? ''; }
+  set heading(value: string) { this.setAttribute('heading', value); }
+  get description(): string { return this.getAttribute('description') ?? ''; }
+  set description(value: string) { this.setAttribute('description', value); }
+
+  connectedCallback(): void { this.sync(); }
+  attributeChangedCallback(): void { this.sync(); }
+
+  private sync(): void {
+    this.headingNode.textContent = this.heading;
+    this.descriptionNode.textContent = this.description;
+    this.descriptionNode.hidden = this.description.length === 0;
   }
 }
 
-customElements.define('pw-panel', UiPanel);
+if (!customElements.get('pw-panel')) customElements.define('pw-panel', UiPanel);

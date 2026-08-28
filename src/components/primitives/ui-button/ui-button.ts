@@ -1,27 +1,37 @@
-import { LitElement } from 'lit';
-import { uiButtonStyles } from './ui-button.styles';
-import { uiButtonTemplate } from './ui-button.template';
+import markup from './ui-button.html?raw';
+import styles from './ui-button.css?raw';
+import { mountStaticShadow, requiredElement } from '../../shadow';
 
 export type UiButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
-export class UiButton extends LitElement {
-  static override properties = {
-    variant: { type: String, reflect: true },
-    disabled: { type: Boolean, reflect: true },
-    busy: { type: Boolean, reflect: true },
-    ariaLabel: { type: String, attribute: 'aria-label' },
-  };
+export class UiButton extends HTMLElement {
+  static get observedAttributes(): string[] { return ['variant', 'disabled', 'busy', 'aria-label']; }
 
-  static override styles = uiButtonStyles;
+  private readonly button: HTMLButtonElement;
 
-  variant: UiButtonVariant = 'secondary';
-  disabled = false;
-  busy = false;
-  ariaLabel = '';
+  constructor() {
+    super();
+    const root = mountStaticShadow(this, markup, styles);
+    this.button = requiredElement<HTMLButtonElement>(root, 'button');
+  }
 
-  override render() {
-    return uiButtonTemplate({ disabled: this.disabled, busy: this.busy, ariaLabel: this.ariaLabel });
+  get variant(): UiButtonVariant { return (this.getAttribute('variant') as UiButtonVariant | null) ?? 'secondary'; }
+  set variant(value: UiButtonVariant) { this.setAttribute('variant', value); }
+  get disabled(): boolean { return this.hasAttribute('disabled'); }
+  set disabled(value: boolean) { this.toggleAttribute('disabled', value); }
+  get busy(): boolean { return this.hasAttribute('busy'); }
+  set busy(value: boolean) { this.toggleAttribute('busy', value); }
+
+  connectedCallback(): void { this.sync(); }
+  attributeChangedCallback(): void { this.sync(); }
+
+  private sync(): void {
+    this.button.disabled = this.disabled || this.busy;
+    this.button.setAttribute('aria-busy', String(this.busy));
+    const accessibleName = this.getAttribute('aria-label');
+    if (accessibleName) this.button.setAttribute('aria-label', accessibleName);
+    else this.button.removeAttribute('aria-label');
   }
 }
 
-customElements.define('pw-button', UiButton);
+if (!customElements.get('pw-button')) customElements.define('pw-button', UiButton);

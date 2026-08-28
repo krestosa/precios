@@ -1,9 +1,0 @@
-import { css } from 'lit';
-
-export const segmentedTabsStyles = css`
-  :host { display: inline-flex; max-width: 100%; }
-  [role='tablist'] { display: inline-flex; max-width: 100%; padding: var(--pw-space-1); border: var(--pw-border-width) solid var(--pw-color-border); border-radius: var(--pw-radius-md); background: var(--pw-color-surface-muted); }
-  button { border: 0; border-radius: var(--pw-radius-sm); padding: var(--pw-space-2) var(--pw-space-3); background: transparent; color: var(--pw-color-text-muted); font: var(--pw-font-weight-strong) var(--pw-font-size-sm) / var(--pw-line-height-tight) var(--pw-font-family); cursor: pointer; }
-  button[aria-selected='true'] { color: var(--pw-color-text); background: var(--pw-color-surface); box-shadow: var(--pw-shadow-raised); }
-  button:focus-visible { outline: var(--pw-focus-width) solid var(--pw-color-focus); outline-offset: var(--pw-border-width); }
-`;

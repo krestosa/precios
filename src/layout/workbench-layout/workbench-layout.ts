@@ -1,13 +1,12 @@
-import { LitElement } from 'lit';
-import { workbenchLayoutStyles } from './workbench-layout.styles';
-import { workbenchLayoutTemplate } from './workbench-layout.template';
+import markup from './workbench-layout.html?raw';
+import styles from './workbench-layout.css?raw';
+import { mountStaticShadow } from '../../components/shadow';
 
-export class WorkbenchLayout extends LitElement {
-  static override styles = workbenchLayoutStyles;
-
-  override render() {
-    return workbenchLayoutTemplate();
+export class WorkbenchLayout extends HTMLElement {
+  constructor() {
+    super();
+    mountStaticShadow(this, markup, styles);
   }
 }
 
-customElements.define('pw-workbench-layout', WorkbenchLayout);
+if (!customElements.get('pw-workbench-layout')) customElements.define('pw-workbench-layout', WorkbenchLayout);
