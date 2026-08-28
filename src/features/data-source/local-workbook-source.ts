@@ -54,6 +54,7 @@ export interface LocalWorkbookOpenResult {
   readonly status: LocalWorkbookOpenStatus;
   readonly sheets: readonly WorkbookSheetInfo[];
   readonly csvSnapshot?: SourceSnapshot;
+  readonly snapshots: readonly SourceSnapshot[];
   readonly diagnostics: readonly Diagnostic[];
   readonly selectSheet: (sheetName: string) => LocalSheetSelectionResult;
 }
@@ -342,6 +343,7 @@ function openCsv(
     status: 'ready',
     sheets: [sheet],
     csvSnapshot: snapshot,
+    snapshots: [snapshot],
     diagnostics: [],
     selectSheet: (sheetName) => {
       if (sheetName !== sheet.name) {
@@ -382,6 +384,7 @@ function openWorkbook(
       format: 'workbook',
       status: 'error',
       sheets,
+      snapshots: [],
       diagnostics: [diagnostic],
       selectSheet: () => ({ status: 'error', diagnostics: [diagnostic] }),
     };
@@ -398,6 +401,7 @@ function openWorkbook(
     format: 'workbook',
     status: 'sheet-selection-required',
     sheets,
+    snapshots: [],
     diagnostics: [selectionDiagnostic],
     selectSheet: (sheetName) => {
       const sheet = sheets.find((candidate) => candidate.name === sheetName);
@@ -431,6 +435,7 @@ export function openLocalWorkbook(input: LocalWorkbookInput): LocalWorkbookOpenR
       format: 'workbook',
       status: 'error',
       sheets: [],
+      snapshots: [],
       diagnostics: [diagnostic],
       selectSheet: () => ({ status: 'error', diagnostics: [diagnostic] }),
     };
@@ -452,6 +457,7 @@ export function openLocalWorkbook(input: LocalWorkbookInput): LocalWorkbookOpenR
       format: extension === 'csv' ? 'csv' : 'workbook',
       status: 'error',
       sheets: [],
+      snapshots: [],
       diagnostics: [diagnostic],
       selectSheet: () => ({ status: 'error', diagnostics: [diagnostic] }),
     };
