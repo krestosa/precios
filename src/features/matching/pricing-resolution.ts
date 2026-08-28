@@ -1,10 +1,10 @@
 import type { Diagnostic } from '../../domain/contracts/core';
+import type { MatchResult } from '../../domain/contracts/matching';
 import type { Channel, PriceField, ProductRef } from '../../domain/contracts/pricing';
 import type { PriceSlot, PriceTier } from '../../domain/pricing/slots';
 import { normalizeCanonicalText } from '../../utils/normalize/text';
-import { matchAction, parseSvgIdentity, type SvgFormatDefinition, type SvgIdentity } from './svg-identity';
-import type { MatchResult } from '../../domain/contracts/matching';
 import type { NameMatcherOptions } from './name-matcher';
+import { matchAction, parseSvgIdentity, type SvgFormatDefinition, type SvgIdentity } from './svg-identity';
 
 export type PricingResolutionDiagnosticCode =
   | 'PRICING_ACTION_MATCH_REQUIRED'
@@ -248,17 +248,37 @@ function suggestedLocalForIdentity(
   return localOptions.find((option) => option.id === identity.localHint?.id) ?? null;
 }
 
+function shouldPreferLocalInterpretation(
+  direct: PricingActionMatch,
+  withLocal: PricingActionMatch,
+): boolean {
+  if (withLocal.identity.localCandidates.length > 1) return true;
+  if (withLocal.identity.localHint === null) return false;
+
+  if (withLocal.result.status === 'matched') {
+    return direct.result.status !== 'matched' || withLocal.result.confidence > direct.result.confidence;
+  }
+
+  return direct.result.status !== 'matched' && withLocal.result.status !== 'unmatched';
+}
+
 export function prepareSvgPricingContext(
   filename: string,
   model: PricingMatrixModel,
   options: PrepareSvgPricingContextOptions = {},
 ): SvgPricingContext {
   const localOptions = listPricingLocalOptions(model);
-  const identity = parseSvgIdentity(filename, {
-    ...(options.formats === undefined ? {} : { formats: options.formats }),
+  const formatOptions = options.formats === undefined ? {} : { formats: options.formats };
+  const directIdentity = parseSvgIdentity(filename, formatOptions);
+  const directAction = matchPricingAction(directIdentity, model, options.matcher);
+  const identityWithLocal = parseSvgIdentity(filename, {
+    ...formatOptions,
     localHints: localOptions.map((local) => ({ id: local.id, label: local.label })),
   });
-  const action = matchPricingAction(identity, model, options.matcher);
+  const actionWithLocal = matchPricingAction(identityWithLocal, model, options.matcher);
+  const useLocalInterpretation = shouldPreferLocalInterpretation(directAction, actionWithLocal);
+  const identity = useLocalInterpretation ? identityWithLocal : directIdentity;
+  const action = useLocalInterpretation ? actionWithLocal : directAction;
 
   return {
     identity,
