@@ -32,6 +32,7 @@
   --pw-primitive-line-height-tight: 1.2;
   --pw-primitive-line-height-normal: 1.4;
   --pw-primitive-line-height-relaxed: 1.5;
+  --pw-primitive-opacity-disabled: 0.55;
   --pw-primitive-space-1: 0.25rem;
   --pw-primitive-space-2: 0.5rem;
   --pw-primitive-space-3: 0.75rem;
@@ -84,6 +85,7 @@
   --pw-line-height-tight: var(--pw-primitive-line-height-tight);
   --pw-line-height-normal: var(--pw-primitive-line-height-normal);
   --pw-line-height-relaxed: var(--pw-primitive-line-height-relaxed);
+  --pw-opacity-disabled: var(--pw-primitive-opacity-disabled);
   --pw-space-1: var(--pw-primitive-space-1);
   --pw-space-2: var(--pw-primitive-space-2);
   --pw-space-3: var(--pw-primitive-space-3);

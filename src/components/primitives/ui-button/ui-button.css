@@ -24,7 +24,7 @@ button:focus-visible { outline: var(--pw-focus-width) solid var(--pw-color-focus
 :host([variant='primary']) button:hover:not(:disabled) { background: var(--pw-color-accent-strong); }
 :host([variant='ghost']) button { border-color: transparent; background: transparent; }
 :host([variant='danger']) button { color: var(--pw-color-surface); border-color: var(--pw-color-danger); background: var(--pw-color-danger); }
-button:disabled { cursor: not-allowed; opacity: 0.55; }
+button:disabled { cursor: not-allowed; opacity: var(--pw-opacity-disabled); }
 .busy { display: none; }
 :host([busy]) .busy { display: inline; }
 @media (prefers-reduced-motion: reduce) { button { transition: none; } }
