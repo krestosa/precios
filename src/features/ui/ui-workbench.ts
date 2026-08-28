@@ -147,6 +147,14 @@ export class PriceWorkbench extends LitElement {
     return 'OK';
   }
 
+  private queueWarningCount(file: WorkbenchFileView): number {
+    return (file.warnings?.length ?? 0) + (file.preflight?.issues.filter((issue) => issue.severity === 'WARNING').length ?? 0);
+  }
+
+  private queueErrorCount(file: WorkbenchFileView): number {
+    return (file.errors?.length ?? 0) + (file.preflight?.issues.filter((issue) => issue.severity === 'ERROR').length ?? 0);
+  }
+
   private onPriceSourceFiles(event: CustomEvent<FilesSelectedDetail>): void {
     dispatchWorkbenchEvent(this, 'pw:price-source-files', { files: event.detail.files });
   }
@@ -468,8 +476,8 @@ export class PriceWorkbench extends LitElement {
     const fileItems = this.model.files.map((file) => ({
       id: file.id,
       primary: file.fileName,
-      secondary: `${file.detectedLocal ?? 'Local sin detectar'} · ${this.fileMatchSummary(file)}`,
-      meta: this.preflightLabel(file),
+      secondary: `${file.detectedLocal ?? 'Local sin detectar'} · ${this.fileMatchSummary(file)} · ${file.classification ?? 'Sin clasificar'} · Fuente: ${file.sourceFileName ?? 'no informada'}`,
+      meta: `${this.preflightLabel(file)} · ${this.queueWarningCount(file)}W/${this.queueErrorCount(file)}E`,
       selected: selected?.id === file.id,
     }));
     return html`<div class="app">
