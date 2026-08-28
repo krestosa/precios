@@ -4,7 +4,7 @@ aside { position: fixed; inset: 0 0 0 auto; z-index: var(--pw-semantic-layout-la
 :host([open]) .backdrop { opacity: 1; pointer-events: auto; }
 :host([open]) aside { transform: translateX(0); visibility: visible; pointer-events: auto; }
 header { display: flex; justify-content: space-between; gap: var(--pw-component-details-drawer-gap); align-items: center; margin-bottom: var(--pw-component-details-drawer-gap); }
-h2 { margin: 0; font: var(--pw-component-details-drawer-heading-type); letter-spacing: var(--pw-foundation-type-tracking-zero); }
+h2 { margin: 0; font: var(--pw-component-details-drawer-heading-type); letter-spacing: var(--pw-component-details-drawer-heading-type-letter-spacing); }
 .close { border: var(--pw-semantic-size-border) solid var(--pw-semantic-color-scheme-outline-variant); border-radius: var(--pw-semantic-shape-small); background: var(--pw-semantic-color-scheme-surface); padding: var(--pw-semantic-space-sm) var(--pw-semantic-space-md); cursor: pointer; color: var(--pw-semantic-color-scheme-on-surface); }
 .close:focus-visible, aside:focus-visible { outline: var(--pw-semantic-focus-width) solid var(--pw-semantic-focus-color); outline-offset: var(--pw-semantic-focus-outward-offset); }
 footer:empty { display: none; }

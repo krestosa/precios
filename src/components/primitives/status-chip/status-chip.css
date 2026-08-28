@@ -6,7 +6,7 @@
   border-radius: var(--pw-component-status-chip-shape);
   padding: var(--pw-component-status-chip-pad-block) var(--pw-component-status-chip-pad-inline);
   font: var(--pw-component-status-chip-type);
-  letter-spacing: var(--pw-foundation-type-tracking-p050);
+  letter-spacing: var(--pw-component-status-chip-type-letter-spacing);
   background: var(--pw-semantic-color-scheme-surface-variant);
   color: var(--pw-semantic-color-scheme-on-surface-variant);
   white-space: nowrap;

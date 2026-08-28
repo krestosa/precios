@@ -4,6 +4,6 @@ button { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto;
 button[aria-current='true'] { border-color: var(--pw-semantic-color-scheme-primary); box-shadow: inset var(--pw-semantic-size-border-strong) 0 0 var(--pw-semantic-color-scheme-primary); }
 button:focus-visible { outline: var(--pw-semantic-focus-width) solid var(--pw-semantic-focus-color); outline-offset: var(--pw-semantic-focus-outward-offset); }
 strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-small { color: var(--pw-semantic-color-scheme-on-surface-variant); font: var(--pw-component-data-list-type); letter-spacing: var(--pw-foundation-type-tracking-p040); overflow-wrap: anywhere; }
-.meta { grid-row: 1 / span 2; grid-column: 2; align-self: start; font: var(--pw-semantic-type-label-medium); letter-spacing: var(--pw-foundation-type-tracking-p050); color: var(--pw-semantic-color-scheme-on-surface-variant); white-space: nowrap; }
+small { color: var(--pw-semantic-color-scheme-on-surface-variant); font: var(--pw-component-data-list-type); letter-spacing: var(--pw-component-data-list-type-letter-spacing); overflow-wrap: anywhere; }
+.meta { grid-row: 1 / span 2; grid-column: 2; align-self: start; font: var(--pw-semantic-type-label-medium); letter-spacing: var(--pw-semantic-type-label-medium-letter-spacing); color: var(--pw-semantic-color-scheme-on-surface-variant); white-space: nowrap; }
 small:empty, .meta:empty { display: none; }

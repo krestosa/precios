@@ -9,7 +9,7 @@ button {
   border-radius: var(--pw-component-ui-button-shape);
   padding: var(--pw-component-ui-button-pad-block) var(--pw-component-ui-button-pad-inline);
   font: var(--pw-component-ui-button-type);
-  letter-spacing: var(--pw-foundation-type-tracking-p010);
+  letter-spacing: var(--pw-component-ui-button-type-letter-spacing);
   color: var(--pw-semantic-color-scheme-on-surface);
   background: var(--pw-semantic-color-scheme-surface);
   cursor: pointer;
