@@ -94,8 +94,8 @@ export type MutableModel = {
   files: WorkbenchFileView[];
   fonts: FontView[];
   fontLoadStatus: WorkbenchViewModel['fontLoadStatus'];
-  preflight?: BatchPreflight;
-  progress?: WorkbenchViewModel['progress'];
+  preflight?: NonNullable<WorkbenchViewModel['preflight']>;
+  progress?: NonNullable<WorkbenchViewModel['progress']>;
 };
 
 export function emptyModel(): MutableModel {
