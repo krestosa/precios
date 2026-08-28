@@ -89,6 +89,11 @@ describe('M3 Expressive dashboard navigation rail', () => {
     expect(declarationBlock('.inspector')).toContain('overflow-y: auto');
   });
 
+  it('acota el inspector responsive al ancho real del dashboard además del viewport', () => {
+    expect(shellStyles).toMatch(/@media \(max-width: 899px\)[\s\S]*?\.inspector\s*\{[^}]*width:\s*min\(88vw,\s*380px,\s*100%\)/);
+    expect(shellStyles).toMatch(/@media \(max-width: 599px\)[\s\S]*?\.inspector\s*\{[^}]*width:\s*min\(92vw,\s*360px,\s*100%\)/);
+  });
+
   it('expone exactamente cinco destinos verticales con Carga activa inicialmente', () => {
     const app = parsedShell();
     const buttons = [...app.querySelectorAll<HTMLButtonElement>('.rail-destination')];
