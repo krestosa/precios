@@ -23,6 +23,7 @@ import type { WorkbenchEventMap } from '../features/ui/events';
 import type { FontView, WorkbookSheetView, WorkbenchFileView } from '../features/ui/models';
 import type { PriceWorkbench } from '../features/ui/workbench';
 import type { PreciosAppCommandName } from '../features/ui/control-api/types';
+import { adaptCsvPricingCompatibility } from './csv-pricing-compat';
 import {
   failedFontView,
   failedSvgView,
@@ -353,8 +354,7 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
         return;
       }
 
-      const sheetInfo = opened.sheets[0];
-      const adapted = adaptPricingMatrix(snapshot, sheetInfo === undefined ? {} : { sheetInfo });
+      const adapted = adaptCsvPricingCompatibility(snapshot);
       if (!adapted.supported) {
         model.source = {
           status: 'error',
