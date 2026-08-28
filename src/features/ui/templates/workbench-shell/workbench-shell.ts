@@ -17,9 +17,10 @@ import '../source-queue'; import '../fonts'; import '../review'; import '../pref
 export interface WorkbenchShellView { readonly model: WorkbenchViewModel; readonly uiState: WorkbenchUiState; }
 
 function queueSecondary(file: WorkbenchFileView): string {
-  if (file.processingState === 'queued' || file.processingState === 'processing' || file.processingState === 'error') {
-    return file.processingMessage ?? processingLabel(file.processingState);
+  if (file.processingState === 'queued' || file.processingState === 'processing') {
+    return [file.processingMessage ?? processingLabel(file.processingState), fileMatchSummary(file)].join(' · ');
   }
+  if (file.processingState === 'error') return file.processingMessage ?? processingLabel(file.processingState);
   return [
     file.processingMessage,
     file.detectedLocal ?? 'Local sin detectar',
