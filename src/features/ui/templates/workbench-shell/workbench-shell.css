@@ -35,13 +35,13 @@
   .inspector-toggle { display: inline-flex; align-items: center; }
   .progress { width: min(180px, 30vw); }
   .dashboard-layout { position: relative; grid-template-columns: minmax(0, 1fr); }
-  .inspector { position: absolute; inset: 0 0 0 auto; z-index: 12; width: min(88vw, 380px); height: 100%; transform: translateX(100%); transition: transform var(--pw-motion-medium) var(--pw-easing-standard); box-shadow: var(--pw-elevation-level4); }
+  .inspector { position: absolute; inset: 0 0 0 auto; z-index: 12; width: min(88vw, 380px, 100%); height: 100%; transform: translateX(100%); transition: transform var(--pw-motion-medium) var(--pw-easing-standard); box-shadow: var(--pw-elevation-level4); }
   .dashboard.inspector-open .inspector { transform: translateX(0); }
 }
 @media (max-width: 599px) {
   .top-actions pw-status-chip { display: none; }
   .progress { width: min(160px, 36vw); }
-  .inspector { width: min(92vw, 360px); padding: var(--pw-space-sm); }
+  .inspector { width: min(92vw, 360px, 100%); padding: var(--pw-space-sm); }
 }
 @media (prefers-reduced-motion: reduce) {
   .rail-indicator::after, .inspector { transition: none; }
