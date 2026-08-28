@@ -244,16 +244,36 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
     const complete = reconciled.records.filter((entry) =>
       known(entry.record.prices.normal) && known(entry.record.prices.eminent),
     );
-    file.priceAlternatives = complete;
     if (complete.length === 0) {
       file.priceIssue = preflightIssue('ERROR', 'pricing.explicit-pair-missing', 'No existe un par NORMAL/ÉMINENT explícito y completo para el producto seleccionado.');
-    } else if (complete.length > 1) {
+      return;
+    }
+    if (complete.length === 1) {
+      file.priceAlternatives = complete;
+      return;
+    }
+
+    const explicitPairs = new Set(complete.map((entry) => {
+      const normal = entry.record.prices.normal;
+      const eminent = entry.record.prices.eminent;
+      return `${known(normal) ? normal.amount : 'unknown'}\u0000${known(eminent) ? eminent.amount : 'unknown'}`;
+    }));
+    if (explicitPairs.size === 1) {
+      file.priceAlternatives = [complete[0]!];
       file.priceIssue = preflightIssue(
         'WARNING',
-        'pricing.scope-unresolved',
-        'Hay más de un grupo/canal con precios explícitos. Se preservan todos y no se aplica precedencia automática.',
+        'pricing.scope-equivalent',
+        'Más de un grupo/canal contiene el mismo par NORMAL/ÉMINENT explícito; el valor aplicado es inequívoco y no requiere precedencia de scope.',
       );
+      return;
     }
+
+    file.priceAlternatives = complete;
+    file.priceIssue = preflightIssue(
+      'ERROR',
+      'pricing.scope-unresolved',
+      'Hay más de un grupo/canal con pares NORMAL/ÉMINENT explícitos diferentes. Se requiere resolver el scope antes de procesar o exportar.',
+    );
   };
 
   const recomputeMatch = (file: RuntimeFile): void => {
@@ -855,8 +875,8 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
       return;
     }
     if (kind === 'file') {
-      const artifact = bundle.svgArtifacts[0];
-      if (artifact) triggerDownload(artifact.fileName, artifact.content, 'image/svg+xml');
+      const artifact = bundle.pngArtifacts[0];
+      if (artifact) triggerDownload(artifact.fileName, artifact.bytes, artifact.mimeType);
       return;
     }
     const extension = format === 'csv' ? '.csv' : '.json';
@@ -871,6 +891,20 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
       provenance: { source: source?.fileName ?? null },
     });
     if (disposed) return;
+    const exportedCount = bundle.files.filter((file) => file.status === 'exported').length;
+    if (detail.kind !== 'manifest' && exportedCount === 0) {
+      exportResult = {
+        status: 'error',
+        kind: detail.kind,
+        hashAlgorithm: 'sha256',
+        sha256: null,
+        partial: true,
+        artifactNames: [],
+        message: 'No se generó ningún PNG exportable a partir del contenido procesado.',
+      };
+      publish();
+      return;
+    }
     deliverExport(detail.kind, detail.manifestFormat, bundle);
     exportResult = {
       status: 'generated',
@@ -879,7 +913,7 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
       sha256: bundle.zipSha256,
       partial: bundle.partial,
       artifactNames: [
-        ...bundle.svgArtifacts.map((artifact) => artifact.fileName),
+        ...bundle.pngArtifacts.map((artifact) => artifact.fileName),
         ...bundle.manifests.map((artifact) => artifact.fileName),
       ],
     };

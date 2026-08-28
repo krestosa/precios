@@ -2,11 +2,16 @@ import type { FileExportResult, ManifestArtifact } from '../../domain/contracts/
 import type { JsonValue } from '../../domain/contracts/core';
 import type { FileTrace } from '../../domain/contracts/manifest';
 import type { FilePreflight } from '../../domain/contracts/preflight';
+import type { SvgPngRasterizer } from './png';
 
 export interface ExportJobMetadata {
   readonly timestamp: string;
   readonly jobId?: string;
   readonly provenance?: JsonValue;
+}
+
+export interface ExportBuildOptions {
+  readonly rasterizeSvg?: SvgPngRasterizer;
 }
 
 export interface ExportFileInput {
@@ -22,6 +27,15 @@ export interface ExportFileInput {
 export interface SvgExportArtifact {
   readonly fileName: string;
   readonly content: string;
+  readonly sha256: string;
+}
+
+export interface PngExportArtifact {
+  readonly fileName: string;
+  readonly bytes: Uint8Array;
+  readonly mimeType: 'image/png';
+  readonly width: number;
+  readonly height: number;
   readonly sha256: string;
 }
 
@@ -58,6 +72,7 @@ export interface ExportManifestDocument {
 export interface ExportBundleResult {
   readonly files: readonly FileExportResult[];
   readonly svgArtifacts: readonly SvgExportArtifact[];
+  readonly pngArtifacts: readonly PngExportArtifact[];
   readonly manifests: readonly ManifestArtifact[];
   readonly manifestDocument: ExportManifestDocument;
   readonly zip: Uint8Array;

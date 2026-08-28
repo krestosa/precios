@@ -5,14 +5,17 @@ import type { PreflightIssue } from '../../domain/contracts/preflight';
 import { sha256Hex } from '../svg-engine/integrity';
 import { runZipTask } from '../../workers/zip-task';
 import { buildManifestArtifacts, buildManifestDocument } from './manifest';
-import { mergeFilePreflightIntoTrace, validateFilePreflightIdentity } from './preflight';
 import type {
+  ExportBuildOptions,
   ExportBundleResult,
   ExportFileInput,
   ExportJobMetadata,
   ExportManifestFile,
+  PngExportArtifact,
   SvgExportArtifact,
 } from './model';
+import { inspectPng, rasterizeSvgToPng } from './png';
+import { mergeFilePreflightIntoTrace, validateFilePreflightIdentity } from './preflight';
 
 function exportIssue(code: string, message: string, input: ExportFileInput): PreflightIssue {
   return {
@@ -30,6 +33,11 @@ function requestedStatus(input: ExportFileInput): FileExportStatus {
   if (input.status !== undefined) return input.status;
   if (input.resultSvg === undefined) return 'error';
   return 'exported';
+}
+
+function pngOutputName(input: ExportFileInput): string {
+  const requested = input.outputName ?? input.trace.sourceSvg.fileName;
+  return /\.svg$/iu.test(requested) ? requested.replace(/\.svg$/iu, '.png') : `${requested}.png`;
 }
 
 function traceWithHashes(
@@ -94,11 +102,14 @@ function manifestFile(
 export async function buildExportBundle(
   inputs: readonly ExportFileInput[],
   job: ExportJobMetadata,
+  options: ExportBuildOptions = {},
 ): Promise<ExportBundleResult> {
   if (job.timestamp.trim() === '') throw new Error('El timestamp del job debe ser provisto explícitamente por el caller.');
 
+  const rasterizeSvg = options.rasterizeSvg ?? rasterizeSvgToPng;
   const fileResults: FileExportResult[] = [];
   const svgArtifacts: SvgExportArtifact[] = [];
+  const pngArtifacts: PngExportArtifact[] = [];
   const manifestFiles: ExportManifestFile[] = [];
 
   for (const input of inputs) {
@@ -111,6 +122,7 @@ export async function buildExportBundle(
     );
     let status = requestedStatus(input);
     const extraErrors: PreflightIssue[] = [...identityIssues];
+    let pngArtifact: PngExportArtifact | null = null;
 
     if (identityIssues.length > 0) status = 'error';
     if (status === 'exported' && input.resultSvg === undefined) {
@@ -118,9 +130,38 @@ export async function buildExportBundle(
       extraErrors.push(exportIssue('export.svg-result-missing', 'El archivo fue marcado para exportar pero no contiene SVG resultante.', input));
     }
 
-    const outputName = status === 'exported'
-      ? input.outputName ?? input.trace.sourceSvg.fileName
-      : null;
+    if (status === 'exported' && input.resultSvg !== undefined) {
+      try {
+        const rasterized = await rasterizeSvg(input.resultSvg);
+        const inspection = inspectPng(rasterized.bytes);
+        if (
+          rasterized.mimeType !== 'image/png'
+          || !inspection.valid
+          || inspection.mimeType !== 'image/png'
+          || inspection.width !== rasterized.width
+          || inspection.height !== rasterized.height
+        ) {
+          throw new Error('El rasterizador no devolvió un PNG válido con MIME y dimensiones coherentes.');
+        }
+        pngArtifact = {
+          fileName: pngOutputName(input),
+          bytes: rasterized.bytes,
+          mimeType: rasterized.mimeType,
+          width: rasterized.width,
+          height: rasterized.height,
+          sha256: await sha256Hex(rasterized.bytes),
+        };
+      } catch (error) {
+        status = 'error';
+        extraErrors.push(exportIssue(
+          'export.png-rasterization-failed',
+          `No se pudo rasterizar el SVG procesado a PNG: ${error instanceof Error ? error.message : String(error)}`,
+          input,
+        ));
+      }
+    }
+
+    const outputName = status === 'exported' && pngArtifact !== null ? pngArtifact.fileName : null;
     const preflightTrace = mergeFilePreflightIntoTrace(input.trace, input.preflight);
     const trace = traceWithHashes(preflightTrace, job, sourceHash, resultHash, extraErrors);
     const diagnostics = [...trace.warnings, ...trace.errors];
@@ -134,15 +175,20 @@ export async function buildExportBundle(
     });
     manifestFiles.push(manifestFile(input, status, trace, sourceHash, resultHash, outputName, job));
 
-    if (status === 'exported' && input.resultSvg !== undefined && outputName !== null && resultHash !== null) {
-      svgArtifacts.push({ fileName: outputName, content: input.resultSvg, sha256: resultHash });
+    if (status === 'exported' && input.resultSvg !== undefined && resultHash !== null && pngArtifact !== null) {
+      svgArtifacts.push({
+        fileName: input.trace.sourceSvg.fileName,
+        content: input.resultSvg,
+        sha256: resultHash,
+      });
+      pngArtifacts.push(pngArtifact);
     }
   }
 
   const manifestDocument = buildManifestDocument(job, manifestFiles);
   const manifests = buildManifestArtifacts(manifestDocument);
   const zipEntries = [
-    ...svgArtifacts.map((artifact) => ({ name: artifact.fileName, bytes: strToU8(artifact.content) })),
+    ...pngArtifacts.map((artifact) => ({ name: artifact.fileName, bytes: artifact.bytes })),
     ...manifests.map((artifact) => ({ name: artifact.fileName, bytes: strToU8(artifact.content) })),
   ];
   const zip = runZipTask({ entries: zipEntries });
@@ -152,6 +198,7 @@ export async function buildExportBundle(
   return {
     files: fileResults,
     svgArtifacts,
+    pngArtifacts,
     manifests,
     manifestDocument,
     zip,
