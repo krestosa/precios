@@ -10,9 +10,10 @@ h2 { margin: 0; font: var(--pw-type-headline-small); letter-spacing: var(--pw-ty
 .empty span { max-width: 440px; color: var(--pw-color-on-surface-variant); font: var(--pw-type-body-small); }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: var(--pw-space-md); min-width: 0; }
 .gallery-card { min-width: 0; overflow: hidden; border: var(--pw-border-width) solid var(--pw-color-outline-variant); border-radius: var(--pw-shape-lg); background: var(--pw-color-surface-container-lowest); box-shadow: var(--pw-elevation-level1); }
+.gallery-card.selected { border-color: var(--pw-color-primary); box-shadow: 0 0 0 1px var(--pw-color-primary); }
 .preview-frame { position: relative; display: grid; min-height: 210px; background: var(--pw-color-surface-container-base); overflow: hidden; }
 .preview-button { display: grid; width: 100%; min-height: 210px; padding: var(--pw-space-sm); border: 0; background: transparent; cursor: zoom-in; }
-.preview-button:focus-visible, .export-button:focus-visible, .tool-button:focus-visible, .fit-button:focus-visible, .lightbox-viewport:focus-visible { outline: var(--pw-focus-width) solid var(--pw-color-primary); outline-offset: var(--pw-focus-outward-offset); }
+.preview-button:focus-visible, .select-button:focus-visible, .export-button:focus-visible, .tool-button:focus-visible, .fit-button:focus-visible, .lightbox-viewport:focus-visible { outline: var(--pw-focus-width) solid var(--pw-color-primary); outline-offset: var(--pw-focus-outward-offset); }
 .thumbnail { display: block; width: 100%; height: 100%; min-height: 194px; max-height: 300px; object-fit: contain; pointer-events: none; user-select: none; -webkit-user-drag: none; }
 .placeholder { display: grid; place-items: center; align-content: center; gap: var(--pw-space-sm); min-height: 210px; padding: var(--pw-space-lg); text-align: center; color: var(--pw-color-on-surface-variant); }
 .placeholder-mark { width: 44px; height: 44px; border: var(--pw-border-strong) solid var(--pw-color-outline-variant); border-radius: var(--pw-shape-full); }
@@ -26,7 +27,10 @@ h2 { margin: 0; font: var(--pw-type-headline-small); letter-spacing: var(--pw-ty
 .file-name, .target { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .file-name { font: var(--pw-type-title-small); }
 .target { color: var(--pw-color-on-surface-variant); font: var(--pw-type-body-small); }
-.export-button, .fit-button, .tool-button { min-height: 36px; border: 0; border-radius: var(--pw-shape-full); font: var(--pw-type-label-medium); cursor: pointer; }
+.card-actions { display: flex; flex: 0 0 auto; align-items: center; gap: var(--pw-space-xs); }
+.select-button, .export-button, .fit-button, .tool-button { min-height: 36px; border: 0; border-radius: var(--pw-shape-full); font: var(--pw-type-label-medium); cursor: pointer; }
+.select-button { padding: 0 var(--pw-space-md); background: var(--pw-color-surface-container-high); color: var(--pw-color-on-surface); }
+.select-button[aria-pressed='true'] { background: var(--pw-color-secondary-container); color: var(--pw-color-on-secondary-container); }
 .export-button { flex: 0 0 auto; padding: 0 var(--pw-space-md); background: var(--pw-color-primary); color: var(--pw-color-on-primary); }
 .export-button:hover { box-shadow: var(--pw-elevation-level1); }
 .lightbox { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: clamp(var(--pw-space-sm), 2vw, var(--pw-space-xl)); background: rgb(0 0 0 / 0.78); backdrop-filter: blur(8px); }
@@ -46,6 +50,21 @@ h2 { margin: 0; font: var(--pw-type-headline-small); letter-spacing: var(--pw-ty
 .lightbox-viewport.dragging { cursor: grabbing; }
 .lightbox-image { display: block; max-width: 100%; max-height: 100%; width: auto; height: auto; transform-origin: center center; transition: transform var(--pw-motion-quick) var(--pw-easing-standard); pointer-events: none; user-select: none; -webkit-user-drag: none; }
 .lightbox-viewport.dragging .lightbox-image { transition: none; }
+:host([compact]) .gallery-section { gap: var(--pw-space-sm); }
+:host([compact]) .gallery-header { align-items: center; padding: 0; }
+:host([compact]) .eyebrow, :host([compact]) .summary { display: none; }
+:host([compact]) h2 { font: var(--pw-type-title-medium); letter-spacing: var(--pw-type-title-medium-letter-spacing); }
+:host([compact]) .empty { min-height: 120px; padding: var(--pw-space-md); border-radius: var(--pw-shape-md); }
+:host([compact]) .grid { grid-template-columns: minmax(0, 1fr); gap: var(--pw-space-sm); }
+:host([compact]) .gallery-card { display: grid; grid-template-columns: 92px minmax(0, 1fr); border-radius: var(--pw-shape-md); box-shadow: none; }
+:host([compact]) .preview-frame, :host([compact]) .preview-button, :host([compact]) .placeholder { min-height: 92px; }
+:host([compact]) .thumbnail { min-height: 76px; max-height: 92px; }
+:host([compact]) .placeholder { padding: var(--pw-space-xs); }
+:host([compact]) .placeholder-mark { width: 28px; height: 28px; }
+:host([compact]) .state-badge { top: 4px; right: 4px; max-width: 84px; overflow: hidden; padding: 3px 5px; text-overflow: ellipsis; white-space: nowrap; }
+:host([compact]) .card-footer { align-items: stretch; flex-direction: column; justify-content: center; padding: var(--pw-space-sm); border-top: 0; border-left: var(--pw-border-width) solid var(--pw-color-outline-variant); }
+:host([compact]) .card-actions { flex-wrap: wrap; }
+:host([compact]) .select-button, :host([compact]) .export-button { min-height: 32px; padding: 0 var(--pw-space-sm); }
 [hidden] { display: none !important; }
 @media (max-width: 599px) {
   .gallery-header { align-items: start; }
@@ -53,6 +72,8 @@ h2 { margin: 0; font: var(--pw-type-headline-small); letter-spacing: var(--pw-ty
   .grid { grid-template-columns: minmax(0, 1fr); }
   .preview-frame, .preview-button, .placeholder { min-height: 180px; }
   .thumbnail { min-height: 164px; max-height: 260px; }
+  :host([compact]) .preview-frame, :host([compact]) .preview-button, :host([compact]) .placeholder { min-height: 92px; }
+  :host([compact]) .thumbnail { min-height: 76px; max-height: 92px; }
   .lightbox { padding: 0; }
   .lightbox-panel { width: 100vw; height: 100dvh; border: 0; border-radius: 0; }
   .lightbox-toolbar { align-items: flex-start; }
