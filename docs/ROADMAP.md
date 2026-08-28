@@ -115,7 +115,7 @@ No se puede integrar end-to-end hasta contar con APIs públicas estables y QA m�
 - Primitives, patterns, layouts y screen-templates en carpetas propias.
 - Cada unidad visual con archivos reales `.html + .css + .ts` e `index.ts` cuando corresponda.
 - Workbench para carga, matching, preview ORIGINAL/RESULT/OVERLAY, zoom/pan/fit, warnings y preflight.
-- Accesibilidad por teclado, focus visible, semántica, reduced-motion y responsive.
+- Accesibilidad por teclado, focus visible, semántica, `prefers-reduced-motion` y responsive.
 
 ### Catálogo mínimo obligatorio antes de cerrar W4
 
@@ -148,8 +148,10 @@ State:
 
 Motion:
 
-- duraciones 50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 700, 800, 900, 1000 ms;
-- curvas standard, emphasized, decelerate, accelerate y linear cuando corresponda.
+- un único esquema normal/utilitario;
+- durations 50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 700, 800, 900, 1000 ms;
+- curvas de timing standard, accelerate, decelerate y emphasized cuando correspondan;
+- no existe un catálogo paralelo de motion.
 
 Elevation/layout/sizing:
 
@@ -182,12 +184,19 @@ Typography:
 - cada composite incluye fontFamily/fontSize/fontWeight/letterSpacing/lineHeight;
 - variante emphasized 1:1 disponible; prominent sólo si existe uso real.
 
-Motion físico:
+Motion:
 
-- fast/default/slow × spatial/effects;
-- escalares físicos como `number`, tiempos como `duration`;
-- spatial puede overshoot cuando corresponda; effects no;
-- reduced-motion obligatorio.
+- `semantic.motion.spatial.fast`: damping `0.9`, stiffness `1400`;
+- `semantic.motion.spatial.default`: damping `0.9`, stiffness `700`;
+- `semantic.motion.spatial.slow`: damping `0.9`, stiffness `300`;
+- `semantic.motion.effects.fast`: damping `1.0`, stiffness `3800`;
+- `semantic.motion.effects.default`: damping `1.0`, stiffness `1600`;
+- `semantic.motion.effects.slow`: damping `1.0`, stiffness `800`;
+- damping/stiffness usan tokens `number`; no se crea un tipo spring propio;
+- spatial se usa para bounds/posición/shape;
+- effects se usa para color/opacity;
+- `prefers-reduced-motion` obligatorio;
+- no existen familias spring adicionales.
 
 Layout:
 
@@ -221,7 +230,7 @@ Cada unidad visual real debe mapear, según aplique:
 - focus;
 - motion.
 
-No se crean catálogos de componentes no usados.
+Component motion sólo puede aliasar/componer la escala de durations, las cuatro curvas de timing y las seis familias spring canónicas. No se crean catálogos de componentes no usados.
 
 ### Gate de aceptación W4
 
@@ -243,17 +252,19 @@ W4 no cierra hasta que se verifique simultáneamente:
 - component CSS consume semantic/component custom properties;
 - no hay hex/rgb/hsl, spacing, radius, motion, elevation, typography, sizing o borders repetidos que deban provenir de tokens;
 - excepciones únicamente documentadas cuando sean intrínsecas a un asset externo;
+- motion contiene sólo durations 50..1000 ms, curvas standard/accelerate/decelerate/emphasized y los seis springs con parámetros exactos definidos arriba;
+- spatial sólo gobierna bounds/posición/shape y effects sólo color/opacity;
+- `prefers-reduced-motion` está implementado para motion/shape transitions;
 - no existen `.template.ts` ni `.styles.ts` como patrón arquitectónico;
 - no existen `css\`...\`` ni `html\`...\`` como fuente principal;
 - no existe Sass/SCSS;
 - TypeScript no contiene el markup principal ni hojas CSS principales de unidades visuales;
 - cada unidad real tiene `.html + .css + .ts` e `index.ts` cuando corresponda;
-- `prefers-reduced-motion` está contemplado para motion/shape transitions;
 - UI no reimplementa parsing, matching, pricing ni SVG.
 
 ### No puede avanzar antes de cerrar
 
-No se puede declarar W4 terminado ni integrar la UI si falla cualquiera de los gates anteriores. En particular, no se acepta un catálogo parcial, un bridge CSS manual/divergente ni componentes con hardcodes evitables.
+No se puede declarar W4 terminado ni integrar la UI si falla cualquiera de los gates anteriores. En particular, no se acepta un catálogo parcial, un bridge CSS manual/divergente, motion fuera del esquema único ni componentes con hardcodes evitables.
 
 ## Fase 4 — Integración end-to-end
 
@@ -349,9 +360,15 @@ W6 debe validar independientemente:
 - ningún token que deba salir a CSS sin salida;
 - ausencia de hex/rgb/hsl repetidos que deban venir de tokens;
 - ausencia de spacing/radius/motion/elevation/tipografía/sizing/borders repetidos que deban venir de tokens;
-- excepciones sólo cuando sean intrínsecas a un asset externo y estén documentadas;
-- reduced-motion verificable;
-- focus ring y estados accesibles consumen los tokens previstos.
+- durations restringidas a 50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 700, 800, 900, 1000 ms;
+- curvas canónicas restringidas a standard/accelerate/decelerate/emphasized;
+- únicamente `semantic.motion.spatial.fast|default|slow` con damping `0.9` y stiffness `1400/700/300`;
+- únicamente `semantic.motion.effects.fast|default|slow` con damping `1.0` y stiffness `3800/1600/800`;
+- spatial aplicado a bounds/posición/shape y effects a color/opacity;
+- ausencia de familias spring o catálogos paralelos adicionales;
+- `prefers-reduced-motion` verificable;
+- focus ring y estados accesibles consumen los tokens previstos;
+- excepciones sólo cuando sean intrínsecas a un asset externo y estén documentadas.
 
 ### Gate de aceptación general
 

@@ -311,7 +311,7 @@ Las esquinas lógicas se expresan de forma derivada para:
 
 Variantes parciales sólo se crean si un componente real las requiere. Geometrías complejas no escalares no se fuerzan a un tipo inexistente: viven como assets fuera del JSON o como metadata/extensión válida si realmente no existe tipo estándar aplicable.
 
-Cuando una interacción use morphing/shape transition, la forma origen/destino y su motion deben estar tokenizados; reduced-motion debe degradar o eliminar la transformación espacial.
+Cuando una interacción use morphing/shape transition, la forma origen/destino y su motion deben estar tokenizados; `prefers-reduced-motion` debe degradar o eliminar la transformación espacial.
 
 ### 11.9 State y focus
 
@@ -336,52 +336,53 @@ Focus ring accesible requiere tokens propios para:
 
 La UI no dispersa opacidades o valores de focus equivalentes por componente si corresponden a estos roles.
 
-### 11.10 Motion clásico
+### 11.10 Motion
 
-Foundation de duración incluye al menos:
+Existe un único esquema de motion normal/utilitario.
+
+Foundation de duración incluye exactamente la escala:
 
 - 50, 100, 150, 200 ms;
 - 250, 300, 350, 400 ms;
 - 450, 500, 550, 600 ms;
 - 700, 800, 900, 1000 ms.
 
-Foundation de curvas incluye:
+Foundation de curvas de timing incluye, cuando corresponda:
 
 - `standard`;
-- `emphasized`;
-- `decelerate`;
 - `accelerate`;
-- `linear` cuando se necesite una transición lineal explícita.
+- `decelerate`;
+- `emphasized`.
 
-Las transiciones de componentes se expresan como composites `transition` que aliasan duración y curva, no como duraciones/curvas repetidas en CSS.
+Las transiciones de componentes se expresan como composites `transition` que aliasan duración y curva del esquema único; no se repiten duraciones/curvas en CSS.
 
-### 11.11 Motion físico
+Los únicos roles spring permitidos dentro de `semantic.motion.*` son:
 
-Existen seis familias semánticas:
+- `semantic.motion.spatial.fast`: damping `0.9`, stiffness `1400`;
+- `semantic.motion.spatial.default`: damping `0.9`, stiffness `700`;
+- `semantic.motion.spatial.slow`: damping `0.9`, stiffness `300`;
+- `semantic.motion.effects.fast`: damping `1.0`, stiffness `3800`;
+- `semantic.motion.effects.default`: damping `1.0`, stiffness `1600`;
+- `semantic.motion.effects.slow`: damping `1.0`, stiffness `800`.
 
-- `fast.spatial`;
-- `default.spatial`;
-- `slow.spatial`;
-- `fast.effects`;
-- `default.effects`;
-- `slow.effects`.
+`damping` y `stiffness` se representan con `$type: "number"`; no se inventa un `$type` especial para springs.
 
-Parámetros físicos como `stiffness`, `dampingRatio` u otros escalares se modelan con `$type: "number"`; tiempos auxiliares usan `duration`. No se inventa un `$type` especial para spring.
+Uso:
 
-Reglas:
+- `motion.spatial.*` se usa para bounds, posición y shape;
+- `motion.effects.*` se usa para color y opacity;
+- component tokens de motion sólo pueden aliasar/componer estas duraciones, curvas y seis familias spring según corresponda;
+- no se crea un catálogo paralelo de motion ni familias spring adicionales.
 
-- spatial puede permitir overshoot cuando el componente lo requiera;
-- effects no debe producir overshoot visual;
-- cada componente que use motion físico referencia la familia semántica correspondiente;
-- `prefers-reduced-motion` es gate obligatorio: transformaciones, desplazamientos y morphing se eliminan o degradan a un cambio no espacial mínimo.
+`prefers-reduced-motion` es obligatorio. El movimiento de bounds/posición/shape se elimina o degrada a un cambio no espacial mínimo; color/opacity se reduce a la mínima transición necesaria sin introducir desplazamiento.
 
-### 11.12 Elevation
+### 11.11 Elevation
 
 Debe existir una escala de elevation 0..5 mediante tokens `shadow` compuestos y un rol semántico de shadow color.
 
 Los componentes aliasan niveles de elevation; no repiten `box-shadow` suelto si corresponde a un nivel compartido.
 
-### 11.13 Spacing, layout y grid
+### 11.12 Spacing, layout y grid
 
 Separar tres conceptos:
 
@@ -416,7 +417,7 @@ El catálogo debe cubrir:
 
 La grilla web es flexible/adaptativa. No existe una cantidad universal rígida de columnas para toda pantalla.
 
-### 11.14 Sizing, borders y opacity
+### 11.13 Sizing, borders y opacity
 
 Debe existir cobertura reusable para:
 
@@ -429,13 +430,13 @@ Debe existir cobertura reusable para:
 
 Los valores intrínsecos únicos de un asset externo pueden quedar fuera de tokens sólo si la excepción está documentada y no se propaga como patrón visual repetido.
 
-### 11.15 Z/layering
+### 11.14 Z/layering
 
 Si la UI usa overlays, drawers, dialogs o popovers, debe existir una escala semántica de layering. Scrim y capas interactivas se resuelven mediante roles, no mediante `z-index` mágicos dispersos.
 
 No se crean roles de layering para componentes inexistentes.
 
-### 11.16 Component tokens
+### 11.15 Component tokens
 
 Cada primitive, pattern, layout o template productivo debe tener grupo `component.<name>` que cubra, según aplique:
 

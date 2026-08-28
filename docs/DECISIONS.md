@@ -170,13 +170,23 @@ Elevation/state/focus:
 
 Motion:
 
-- durations 50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 700, 800, 900, 1000 ms;
-- curves standard/emphasized/decelerate/accelerate y linear cuando corresponda;
-- transitions compuestas;
-- seis familias semánticas fast/default/slow × spatial/effects;
-- parámetros físicos escalares usan `number`, tiempos usan `duration`, sin tipo especial inventado;
-- spatial puede overshoot cuando corresponda; effects no;
-- reduced-motion es obligatorio y elimina/degrada transformaciones espaciales.
+- existe un único esquema normal/utilitario;
+- durations: 50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 700, 800, 900, 1000 ms;
+- curvas de timing: standard, accelerate, decelerate y emphasized cuando corresponda;
+- transitions compuestas mediante esos valores;
+- los únicos spring roles son `semantic.motion.spatial.fast|default|slow` y `semantic.motion.effects.fast|default|slow`;
+- spatial.fast: damping `0.9`, stiffness `1400`;
+- spatial.default: damping `0.9`, stiffness `700`;
+- spatial.slow: damping `0.9`, stiffness `300`;
+- effects.fast: damping `1.0`, stiffness `3800`;
+- effects.default: damping `1.0`, stiffness `1600`;
+- effects.slow: damping `1.0`, stiffness `800`;
+- damping y stiffness usan `$type: "number"`; no existe tipo spring propio;
+- spatial gobierna bounds/posición/shape;
+- effects gobierna color/opacity;
+- component motion sólo aliasa/compone la escala, curvas y seis springs anteriores;
+- no se crean familias spring adicionales ni un catálogo paralelo de motion;
+- `prefers-reduced-motion` es obligatorio: movimiento espacial se elimina/degrada y effects se reduce a la mínima transición necesaria.
 
 Layout/sizing/layering:
 
@@ -201,7 +211,7 @@ Component CSS consume custom properties semánticas/de componente y no repite va
 - No puede haber token destinado a CSS sin salida.
 - Los nombres CSS deben ser trazables al path del token.
 - W4 no cierra sin catálogo completo y consumo correcto.
-- W6 valida estructura, tipos, aliases, ciclos, bridge, cobertura y ausencia de hardcodes evitables.
+- W6 valida estructura, tipos, aliases, ciclos, bridge, cobertura, motion canónico y ausencia de hardcodes evitables.
 
 ### Preflight y batch
 
@@ -327,7 +337,7 @@ Pendiente: ejecutar el mismo handoff/pipeline real en Windows y Linux, y comprob
 
 ### Implementación y QA del sistema de tokens
 
-Pendiente operativo: W4 debe materializar el catálogo completo y el bridge 1:1; W6 debe validarlos. La arquitectura ya está congelada, pero eso no equivale a implementación ni QA completados.
+Pendiente operativo: W4 debe materializar el catálogo completo, el motion canónico y el bridge 1:1; W6 debe validarlos. La arquitectura ya está congelada, pero eso no equivale a implementación ni QA completados.
 
 ### Librerías concretas
 

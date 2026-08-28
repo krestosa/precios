@@ -179,7 +179,7 @@ Permitido:
 - props/modelos/eventos tipados para datos de negocio;
 - `CustomEvent` con `bubbles/composed` cuando deba cruzar Shadow DOM.
 
-Accesibilidad requerida: teclado, focus visible, semántica, ARIA sólo cuando aporte, reduced-motion y responsive.
+Accesibilidad requerida: teclado, focus visible, semántica, ARIA sólo cuando aporte, `prefers-reduced-motion` y responsive.
 
 ## 12. Tokens: fuente, forma y capas
 
@@ -315,24 +315,35 @@ Esquinas lógicas derivadas: start-start, start-end, end-start, end-end. Variant
 
 Focus ring: width, active-width, inward offset, outward offset, shape, color y duration.
 
-### Motion clásico
+### Motion
+
+Existe un único esquema normal/utilitario.
 
 Duraciones foundation: 50, 100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 700, 800, 900, 1000 ms.
 
-Curvas foundation: standard, emphasized, decelerate, accelerate y linear cuando corresponda.
+Curvas foundation: standard, accelerate, decelerate y emphasized cuando corresponda como curvas de timing.
 
-Las transiciones de componentes son composites `transition` que aliasan estos valores.
+Las transiciones de componentes son composites `transition` que aliasan esos valores.
 
-### Motion físico
+Los únicos roles spring semánticos son:
 
-Familias semantic:
+- `semantic.motion.spatial.fast`: damping `0.9`, stiffness `1400`;
+- `semantic.motion.spatial.default`: damping `0.9`, stiffness `700`;
+- `semantic.motion.spatial.slow`: damping `0.9`, stiffness `300`;
+- `semantic.motion.effects.fast`: damping `1.0`, stiffness `3800`;
+- `semantic.motion.effects.default`: damping `1.0`, stiffness `1600`;
+- `semantic.motion.effects.slow`: damping `1.0`, stiffness `800`.
 
-- fast/default/slow × spatial;
-- fast/default/slow × effects.
+`damping` y `stiffness` usan `$type: "number"`; no crear un `$type` especial para spring.
 
-Stiffness, dampingRatio y escalares equivalentes usan `$type: "number"`; tiempos usan `duration`. No crear un `$type` no estándar para spring. Spatial puede permitir overshoot cuando corresponda; effects no debe overshoot.
+Uso obligatorio:
 
-`prefers-reduced-motion` es gate obligatorio: transform/morph/movimiento espacial se elimina o degrada a cambio no espacial mínimo.
+- spatial: bounds, posición y shape;
+- effects: color y opacity;
+- component motion sólo aliasa/compone las duraciones, curvas y springs anteriores;
+- no crear familias spring adicionales ni otro catálogo de motion.
+
+`prefers-reduced-motion` es gate obligatorio: bounds/posición/shape se eliminan o degradan a cambio no espacial mínimo; color/opacity se reduce a la mínima transición necesaria.
 
 ### Spacing/layout
 
@@ -486,7 +497,8 @@ W4 debe poder demostrar antes de cerrar:
 - cero tokens destinados a CSS sin salida;
 - cero `.styles.ts`/`.template.ts`;
 - archivos reales `.html/.css/.ts` por unidad;
-- reduced-motion implementable desde tokens/estilos;
+- motion limitado al esquema único: durations 50..1000 ms, curvas standard/accelerate/decelerate/emphasized y los seis springs canónicos con parámetros exactos;
+- `prefers-reduced-motion` implementable desde tokens/estilos;
 - cero hardcodes visuales evitables en component CSS.
 
 W6 debe validar de forma independiente:
@@ -499,6 +511,9 @@ W6 debe validar de forma independiente:
 - ausencia de tokens CSS-exportables sin salida;
 - cobertura de componentes reales;
 - ausencia de hex/rgb/hsl y spacing/radius/motion/elevation repetidos que deban provenir de tokens;
+- que sólo existan `semantic.motion.spatial.fast|default|slow` con damping `0.9` y stiffness `1400/700/300`, y `semantic.motion.effects.fast|default|slow` con damping `1.0` y stiffness `3800/1600/800`;
+- que spatial se use para bounds/posición/shape y effects para color/opacity;
+- `prefers-reduced-motion` efectivo;
 - excepciones únicamente cuando sean intrínsecas a un asset externo y estén documentadas.
 
 ## 20. Preflight y errores
