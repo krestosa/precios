@@ -21,27 +21,22 @@
 
   <main class="dashboard workspace">
     <header class="topbar">
-      <div>
-        <p class="eyebrow">Workbench local</p>
-        <h1>Actualización de precios en SVG</h1>
-        <p class="subtitle">Carga fuentes, revisá resultados procesados, validá preflight y exportá únicamente los outputs aptos.</p>
-      </div>
+      <button class="inspector-toggle" type="button" aria-expanded="false" aria-controls="dashboard-inspector">Inspector</button>
       <div class="top-actions"><pw-status-chip tone="info" label="Procesamiento local"></pw-status-chip><pw-progress class="progress" hidden></pw-progress></div>
     </header>
 
-    <section id="results-section" class="workspace-section results-section dashboard-primary"><pw-results-gallery-template></pw-results-gallery-template></section>
+    <div class="dashboard-layout">
+      <section id="results-section" class="canvas-region dashboard-primary" aria-label="Resultado procesado seleccionado">
+        <pw-processed-canvas-template></pw-processed-canvas-template>
+      </section>
 
-    <pw-workbench-layout class="detail-layout">
-      <div slot="left" class="stack">
-        <section id="source-section" class="workspace-section"><pw-source-queue-template></pw-source-queue-template><pw-fonts-template></pw-fonts-template></section>
-      </div>
-      <div slot="center" class="stack">
-        <section id="review-section" class="workspace-section"><pw-review-template></pw-review-template></section>
-      </div>
-      <div slot="right" class="stack">
-        <section id="validation-section" class="workspace-section"><pw-preflight-template></pw-preflight-template></section>
-        <section id="export-section" class="workspace-section"><pw-export-template></pw-export-template></section>
-      </div>
-    </pw-workbench-layout>
+      <aside id="dashboard-inspector" class="inspector" aria-label="Inspector del output seleccionado">
+        <section class="inspector-section output-selector-section"><pw-results-gallery-template compact></pw-results-gallery-template></section>
+        <section id="source-section" class="inspector-section"><pw-source-queue-template></pw-source-queue-template><pw-fonts-template></pw-fonts-template></section>
+        <section id="review-section" class="inspector-section"><pw-review-template></pw-review-template></section>
+        <section id="validation-section" class="inspector-section"><pw-preflight-template></pw-preflight-template></section>
+        <section id="export-section" class="inspector-section"><pw-export-template></pw-export-template></section>
+      </aside>
+    </div>
   </main>
 </div>
