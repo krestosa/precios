@@ -1,5 +1,11 @@
 :host { display: inline-flex; max-width: 100%; }
-.tabs { display: inline-flex; max-width: 100%; padding: var(--pw-space-xs); border: var(--pw-border-width) solid var(--pw-color-border); border-radius: var(--pw-shape-medium); background: var(--pw-color-surface-alt); }
-button { border: 0; border-radius: var(--pw-shape-small); padding: var(--pw-space-sm) var(--pw-space-md); background: transparent; color: var(--pw-color-text-muted); font: var(--pw-type-label-medium); letter-spacing: var(--pw-type-label-medium-tracking); cursor: pointer; }
-button[aria-selected='true'] { color: var(--pw-color-text); background: var(--pw-color-surface); box-shadow: var(--pw-elevation-low); }
-button:focus-visible { outline: var(--pw-focus-width) solid var(--pw-color-accent); outline-offset: var(--pw-focus-inward-offset); }
+.tabs { display: inline-flex; max-width: 100%; padding: var(--pw-space-xs); border: var(--pw-border-width) solid var(--pw-color-outline); border-radius: var(--pw-shape-md); background: var(--pw-color-surface-container-base); }
+button { min-height: var(--pw-control-min-target); position: relative; isolation: isolate; overflow: hidden; border: 0; border-radius: var(--pw-shape-sm); padding: var(--pw-space-sm) var(--pw-space-md); background: transparent; color: var(--pw-color-on-surface-variant); font: var(--pw-type-label-medium); letter-spacing: var(--pw-type-label-medium-letter-spacing); cursor: pointer; }
+button::before { content: ''; position: absolute; inset: 0; background: currentColor; opacity: 0; pointer-events: none; transition: opacity var(--pw-motion-quick) var(--pw-easing-standard); }
+button > span { position: relative; z-index: 1; }
+button:hover::before { opacity: var(--pw-state-hover); }
+button:focus-visible::before { opacity: var(--pw-state-focus); }
+button:active::before { opacity: var(--pw-state-pressed); }
+button[aria-selected='true'] { color: var(--pw-color-on-surface); background: var(--pw-color-surface-container-highest); box-shadow: var(--pw-elevation-level1); }
+button:focus-visible { outline: var(--pw-focus-width) solid var(--pw-color-primary); outline-offset: var(--pw-focus-inward-offset); }
+@media (prefers-reduced-motion: reduce) { button::before { transition: none; } }

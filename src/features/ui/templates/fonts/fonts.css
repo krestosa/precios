@@ -1,8 +1,8 @@
 :host { display: block; }
 .stack { display: grid; gap: var(--pw-space-md); }
 .font-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--pw-space-sm); }
-.font-item { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--pw-space-md); padding: var(--pw-space-md); border: var(--pw-border-width) solid var(--pw-color-border); border-radius: var(--pw-shape-medium); }
+.font-item { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--pw-space-md); padding: var(--pw-space-md); border: var(--pw-border-width) solid var(--pw-color-outline-variant); border-radius: var(--pw-shape-md); background: var(--pw-color-surface-container-lowest); }
 .font-text { min-width: 0; }
 .font-text strong { display: block; overflow-wrap: anywhere; }
-.font-text span { color: var(--pw-color-text-muted); font: var(--pw-type-body-small); letter-spacing: var(--pw-type-body-small-tracking); }
+.font-text span { color: var(--pw-color-on-surface-variant); font: var(--pw-type-body-small); letter-spacing: var(--pw-type-body-small-letter-spacing); }
 [hidden] { display: none !important; }

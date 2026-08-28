@@ -6,12 +6,12 @@
   border-radius: var(--pw-shape-full);
   padding: var(--pw-space-xs) var(--pw-space-sm);
   font: var(--pw-type-label-medium);
-  letter-spacing: var(--pw-type-label-medium-tracking);
-  background: var(--pw-color-surface-alt);
-  color: var(--pw-color-text-muted);
+  letter-spacing: var(--pw-type-label-medium-letter-spacing);
+  background: var(--pw-color-surface-variant);
+  color: var(--pw-color-on-surface-variant);
   white-space: nowrap;
 }
-:host([tone='info']) .chip { color: var(--pw-color-accent); background: var(--pw-color-accent-soft); }
-:host([tone='success']) .chip { color: var(--pw-color-success); background: var(--pw-color-success-soft); }
-:host([tone='warning']) .chip { color: var(--pw-color-warning); background: var(--pw-color-warning-soft); }
-:host([tone='danger']) .chip { color: var(--pw-color-error); background: var(--pw-color-error-soft); }
+:host([tone='info']) .chip { color: var(--pw-color-primary); background: var(--pw-color-primary-container); }
+:host([tone='success']) .chip { color: var(--pw-color-success); background: var(--pw-color-success-container); }
+:host([tone='warning']) .chip { color: var(--pw-color-warning); background: var(--pw-color-warning-container); }
+:host([tone='danger']) .chip { color: var(--pw-color-error); background: var(--pw-color-error-container); }
