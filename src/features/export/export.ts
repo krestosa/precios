@@ -115,9 +115,10 @@ export async function buildExportBundle(
   for (const input of inputs) {
     const sourceHash = await sha256Hex(input.sourceSvg);
     const resultHash = input.resultSvg === undefined ? null : await sha256Hex(input.resultSvg);
+    const preflightName = input.outputName ?? input.trace.sourceSvg.fileName;
     const identityIssues = validateFilePreflightIdentity(
       input.fileId,
-      input.trace.sourceSvg.fileName,
+      preflightName,
       input.preflight,
     );
     let status = requestedStatus(input);
