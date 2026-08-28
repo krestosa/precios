@@ -210,7 +210,14 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
       pendingSvgFiles.clear();
     }
     if (activeUpload.command === 'font.load' && model.fontLoadStatus === 'loading') {
-      model.fontLoadStatus = uploadedFontViews.size > 0 ? 'ready' : 'error';
+      for (const [id, view] of uploadedFontViews) {
+        if (view.processingState === 'processing') uploadedFontViews.delete(id);
+      }
+      const remaining = [...uploadedFontViews.values()];
+      model.fontLoadStatus = remaining.some((view) => view.processingState === 'error')
+        ? 'error'
+        : remaining.length > 0 ? 'ready' : 'error';
+      refreshFontModel();
     }
     delete model.progress;
   };
@@ -537,6 +544,7 @@ export function installAppRuntimeController(workbench: PriceWorkbench): AppRunti
   const onSheetSelect = async (detail: WorkbenchEventMap['pw:sheet-select']): Promise<void> => {
     const session = workbookSession;
     const file = workbookFile;
+    interruptActiveUpload();
     const revision = ++operationRevision;
     contentRevision += 1;
     activeUpload = null;
